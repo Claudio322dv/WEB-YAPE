@@ -75,6 +75,29 @@
             margin-bottom: 15px;
             color: #666;
         }
+        label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            margin: 12px 0 6px;
+        }
+        input {
+            box-sizing: border-box;
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #d2d2d7;
+            border-radius: 8px;
+            font-size: 15px;
+        }
+        .route {
+            margin: 14px 0 0;
+            padding: 10px;
+            border-radius: 8px;
+            background: #f5f0f7;
+            color: #632074;
+            font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+            overflow-wrap: anywhere;
+        }
     </style>
 </head>
 <body>
@@ -85,14 +108,19 @@
 
         <!-- Panel para simular un pago manual -->
         <div class="card">
-            <h3>Prueba de Conexión</h3>
-            <p style="font-size: 14px; color: #555;">Haz clic en el botón para enviar un pago falso a Firebase. Si tu app está conectada, debería registrarlo y decirlo en voz alta.</p>
-            <button onclick="enviarPagoPrueba()">Simular Pago de S/ 25.50</button>
+            <h3>Prueba de conexión</h3>
+            <p style="font-size: 14px; color: #555;">Envía un pago de prueba a la misma ruta que consulta la aplicación principal.</p>
+            <label for="codigoCaja">Identificador de caja</label>
+            <input id="codigoCaja" type="text" value="DEFAULT" placeholder="Ej.: CAJA-LOCAL-01">
+            <label for="fechaPago">Fecha</label>
+            <input id="fechaPago" type="date">
+            <p id="rutaFirebase" class="route"></p>
+            <button onclick="enviarPagoPrueba()">Simular pago de S/ 25.50</button>
         </div>
 
         <!-- Historial en tiempo real -->
         <div class="card">
-            <h3>Pagos Recibidos en Tiempo Real</h3>
+            <h3>Pagos recibidos en tiempo real</h3>
             <div id="listaPagos">
                 <p style="color: #999; text-align: center;">Esperando pagos...</p>
             </div>
@@ -115,6 +143,59 @@
 
         const statusDiv = document.getElementById("status");
         const listaPagosDiv = document.getElementById("listaPagos");
+        const codigoCajaInput = document.getElementById("codigoCaja");
+        const fechaPagoInput = document.getElementById("fechaPago");
+        const rutaFirebase = document.getElementById("rutaFirebase");
+        let pagosRef = null;
+
+        const hoy = new Date();
+        const fechaLocal = new Date(hoy.getTime() - hoy.getTimezoneOffset() * 60000)
+            .toISOString()
+            .split("T")[0];
+        fechaPagoInput.value = fechaLocal;
+
+        function obtenerRutaPagos() {
+            const codigoCaja = codigoCajaInput.value.trim() || "DEFAULT";
+            return `yapes/${codigoCaja}/${fechaPagoInput.value}`;
+        }
+
+        function mostrarPago(data) {
+            if (listaPagosDiv.querySelector("p")) listaPagosDiv.innerHTML = "";
+
+            const nombre = data.nombre || "Cliente de Prueba";
+            const monto = Number(data.monto ?? data.amount ?? data.valor ?? 0);
+            const fecha = data.fecha ? new Date(data.fecha) : new Date();
+            const item = document.createElement("div");
+            item.className = "pago-item";
+
+            const info = document.createElement("div");
+            info.className = "pago-info";
+            const titulo = document.createElement("h4");
+            titulo.textContent = nombre;
+            const hora = document.createElement("span");
+            hora.textContent = fecha.toLocaleTimeString();
+            info.append(titulo, hora);
+
+            const montoDiv = document.createElement("div");
+            montoDiv.className = "pago-monto";
+            montoDiv.textContent = `S/ ${monto.toFixed(2)}`;
+            item.append(info, montoDiv);
+            listaPagosDiv.prepend(item);
+        }
+
+        function escucharPagos() {
+            if (!fechaPagoInput.value) return;
+            if (pagosRef) pagosRef.off("child_added");
+
+            const ruta = obtenerRutaPagos();
+            rutaFirebase.textContent = `Ruta de prueba: ${ruta}`;
+            listaPagosDiv.innerHTML = '<p style="color: #999; text-align: center;">Esperando pagos...</p>';
+            pagosRef = db.ref(ruta);
+            pagosRef.on("child_added", (snapshot) => mostrarPago(snapshot.val() || {}));
+        }
+
+        codigoCajaInput.addEventListener("change", escucharPagos);
+        fechaPagoInput.addEventListener("change", escucharPagos);
 
         // Monitorear estado de conexión con Firebase
         db.ref(".info/connected").on("value", function(snapshot) {
@@ -127,41 +208,6 @@
             }
         });
 
-        // Escuchar los pagos en tiempo real desde el nodo "pagos"
-        const pagosRef = db.ref("pagos");
-        pagosRef.on("child_added", function(snapshot) {
-            const data = snapshot.val();
-            
-            // Si es la primera vez que carga y la lista dice "Esperando pagos...", la limpiamos
-            if (listaPagosDiv.innerHTML.includes("Esperando pagos...")) {
-                listaPagosDiv.innerHTML = "";
-            }
-
-            const nombre = data.nombre || "Cliente de Prueba";
-            const monto = data.monto || "0.00";
-            
-            // Formatear la fecha si viene en timestamp
-            let horaTexto = "Hace un momento";
-            if (data.fecha) {
-                const fechaObj = new Date(data.fecha);
-                horaTexto = fechaObj.toLocaleTimeString();
-            }
-
-            // Crear elemento visual para el pago
-            const itemHTML = `
-                <div class="pago-item">
-                    <div class="pago-info">
-                        <h4>${nombre}</h4>
-                        <span>${horaTexto}</span>
-                    </div>
-                    <div class="pago-monto">S/ ${monto}</div>
-                </div>
-            `;
-
-            // Agregar arriba en la lista
-            listaPagosDiv.innerHTML = itemHTML + listaPagosDiv.innerHTML;
-        });
-
         // Función para inyectar un pago de prueba manualmente
         function enviarPagoPrueba() {
             const nuevoPago = {
@@ -169,6 +215,8 @@
                 monto: "25.50",
                 fecha: Date.now()
             };
+
+            if (!pagosRef) return;
 
             pagosRef.push(nuevoPago)
                 .then(() => {
@@ -178,6 +226,8 @@
                     alert("Error al enviar: " + error.message);
                 });
         }
+
+        escucharPagos();
     </script>
 </body>
 </html>
