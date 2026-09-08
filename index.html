@@ -234,8 +234,12 @@
 
         // 2. ESTADO GLOBAL DE LA APLICACIÓN
         const dateInput = document.getElementById('selectFecha');
+        // ✅ CÓDIGO CORREGIDO (Obtiene la fecha local exacta YYYY-MM-DD):
         const hoy = new Date();
-        dateInput.value = hoy.toISOString().split('T')[0];
+        const offset = hoy.getTimezoneOffset() * 60000;
+        const fechaLocal = new Date(hoy.getTime() - offset).toISOString().split('T')[0];
+        
+        dateInput.value = fechaLocal;
 
         let totalYapeAppReal = 0.00;
         let listenerFirebaseActivo = null;
