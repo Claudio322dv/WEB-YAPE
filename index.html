@@ -29,10 +29,10 @@
             body * {
                 visibility: hidden;
             }
-            #reportePdf, #reportePdf * {
+            #reportePdf, #reportePdf *, #reporteSemanalPdf, #reporteSemanalPdf * {
                 visibility: visible;
             }
-            #reportePdf {
+            .print-active {
                 position: absolute;
                 left: 0;
                 top: 0;
@@ -190,7 +190,9 @@
 
                     <div class="pt-4 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400">
                         <span>* Los días cerrados conservan su historial.</span>
-                        <button onclick="reiniciarSemana()" class="text-red-500 hover:underline font-bold">Reiniciar Cierre Semanal</button>
+                        <button onclick="abrirModalReiniciarSemana()" class="text-red-500 hover:underline font-bold flex items-center gap-1">
+                            <span>🔄</span> Reiniciar Cierre Semanal
+                        </button>
                     </div>
                 </section>
 
@@ -250,7 +252,7 @@
         </main>
     </div>
 
-    <!-- MODAL DE VERIFICACIÓN Y CONFIRMACIÓN DE CIERRE -->
+    <!-- MODAL 1: VERIFICACIÓN Y CONFIRMACIÓN DE CIERRE DEL DÍA -->
     <div id="modalCierre" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4 no-print">
         <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-6 transform transition-all">
             
@@ -294,17 +296,17 @@
                 <p class="text-xs font-bold text-slate-800 uppercase tracking-wider">Preguntas de Verificación Obligatorias:</p>
                 
                 <label class="flex items-start gap-3 p-2 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100 text-xs">
-                    <input type="checkbox" id="check1" onchange="validarPreguntas()" class="mt-0.5 rounded text-yape focus:ring-yape">
+                    <input type="checkbox" id="check1" onchange="validarPreguntasDia()" class="mt-0.5 rounded text-yape focus:ring-yape">
                     <span>¿Confirmas que se han registrado todas las rendiciones de los empleados del turno?</span>
                 </label>
 
                 <label class="flex items-start gap-3 p-2 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100 text-xs">
-                    <input type="checkbox" id="check2" onchange="validarPreguntas()" class="mt-0.5 rounded text-yape focus:ring-yape">
+                    <input type="checkbox" id="check2" onchange="validarPreguntasDia()" class="mt-0.5 rounded text-yape focus:ring-yape">
                     <span>¿Verificaste la consistencia o justificación del faltante/sobrante de Yape si lo hubiera?</span>
                 </label>
 
                 <label class="flex items-start gap-3 p-2 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100 text-xs">
-                    <input type="checkbox" id="check3" onchange="validarPreguntas()" class="mt-0.5 rounded text-yape focus:ring-yape">
+                    <input type="checkbox" id="check3" onchange="validarPreguntasDia()" class="mt-0.5 rounded text-yape focus:ring-yape">
                     <span>¿Deseas bloquear las ediciones de este día y generar la constancia?</span>
                 </label>
             </div>
@@ -322,10 +324,75 @@
         </div>
     </div>
 
-    <!-- PLANTILLA OCULTA DE REPORTE IMPRESO / PDF -->
+    <!-- MODAL 2: VERIFICACIÓN Y CONFIRMACIÓN DE REINICIO SEMANAL -->
+    <div id="modalReiniciarSemana" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center hidden z-50 p-4 no-print">
+        <div class="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full p-6 space-y-6 transform transition-all">
+            
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="text-base font-bold text-red-600 flex items-center gap-2">
+                    <span class="text-xl">🚨</span> Reinicio de Caja Semanal
+                </h3>
+                <button onclick="cerrarModalReiniciarSemana()" class="text-slate-400 hover:text-slate-600 font-bold text-lg">✕</button>
+            </div>
+
+            <!-- RESUMEN SEMANAL DENTRO DEL MODAL -->
+            <div class="bg-red-50 rounded-xl p-4 border border-red-200 space-y-2 text-xs">
+                <p class="font-bold text-red-800 text-center uppercase tracking-wide">Resumen Acumulado a Reiniciar</p>
+                <div class="flex justify-between">
+                    <span>Total Yape Semanal:</span>
+                    <span id="modalSemYape" class="font-bold text-yape">S/ 0.00</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Total Efectivo Semanal:</span>
+                    <span id="modalSemEfectivo" class="font-bold text-emerald-600">S/ 0.00</span>
+                </div>
+                <hr class="border-red-200 my-1">
+                <div class="flex justify-between text-sm font-black text-slate-900">
+                    <span>Gran Total Semanal:</span>
+                    <span id="modalSemTotal">S/ 0.00</span>
+                </div>
+                <p class="text-[11px] text-red-700 font-medium text-center pt-2">
+                    ⚠️ Al confirmar, los acumulados semanales volverán a S/ 0.00 y se emitirá el PDF de cierre semanal.
+                </p>
+            </div>
+
+            <!-- PREGUNTAS DE VERIFICACIÓN OBLIGATORIAS -->
+            <div class="space-y-3">
+                <p class="text-xs font-bold text-slate-800 uppercase tracking-wider">Preguntas de Verificación Obligatorias:</p>
+                
+                <label class="flex items-start gap-3 p-2 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100 text-xs">
+                    <input type="checkbox" id="checkSem1" onchange="validarPreguntasSemana()" class="mt-0.5 rounded text-red-600 focus:ring-red-500">
+                    <span>¿Confirmas que se han cerrado todos los días correspondientes a la semana activa?</span>
+                </label>
+
+                <label class="flex items-start gap-3 p-2 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100 text-xs">
+                    <input type="checkbox" id="checkSem2" onchange="validarPreguntasSemana()" class="mt-0.5 rounded text-red-600 focus:ring-red-500">
+                    <span>¿Aceptas emitir e imprimir el reporte consolidado PDF de la semana antes de blanquear datos?</span>
+                </label>
+
+                <label class="flex items-start gap-3 p-2 bg-slate-50 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-100 text-xs">
+                    <input type="checkbox" id="checkSem3" onchange="validarPreguntasSemana()" class="mt-0.5 rounded text-red-600 focus:ring-red-500">
+                    <span>¿Entiendes que esta acción reiniciará los indicadores semanales a S/ 0.00?</span>
+                </label>
+            </div>
+
+            <!-- ACCIONES DEL MODAL -->
+            <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
+                <button onclick="cerrarModalReiniciarSemana()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+                    Cancelar
+                </button>
+                <button id="btnConfirmarReiniciarSemana" onclick="ejecutarReiniciodeSemana()" disabled
+                    class="px-5 py-2 bg-slate-300 text-slate-500 font-bold rounded-xl text-xs transition shadow cursor-not-allowed">
+                    🔄 Confirmar y Reiniciar Semana
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PLANTILLA OCULTA DE REPORTE IMPRESO / PDF DIARIO -->
     <div id="reportePdf" class="hidden">
         <div style="text-align: center; border-bottom: 2px solid #742284; padding-bottom: 10px; margin-bottom: 15px;">
-            <h1 style="font-size: 20px; font-weight: bold; color: #742284; margin: 0;">REPORT DE CIERRE DE CAJA</h1>
+            <h1 style="font-size: 20px; font-weight: bold; color: #742284; margin: 0;">REPORTE DE CIERRE DE CAJA DIARIO</h1>
             <p style="font-size: 11px; color: #666; margin: 3px 0 0 0;">Yape Notificador - Sistema Multitenant</p>
         </div>
 
@@ -380,6 +447,53 @@
             </div>
             <div style="width: 40%; border-top: 1px solid #000; padding-top: 5px;">
                 Firma Cajero Principal
+            </div>
+        </div>
+    </div>
+
+    <!-- PLANTILLA OCULTA DE REPORTE IMPRESO / PDF SEMANAL -->
+    <div id="reporteSemanalPdf" class="hidden">
+        <div style="text-align: center; border-bottom: 2px solid #742284; padding-bottom: 10px; margin-bottom: 15px;">
+            <h1 style="font-size: 20px; font-weight: bold; color: #742284; margin: 0;">REPORTE DE CIERRE GENERAL SEMANAL</h1>
+            <p style="font-size: 11px; color: #666; margin: 3px 0 0 0;">Yape Notificador - Consolidado Semanal</p>
+        </div>
+
+        <div style="font-size: 12px; margin-bottom: 15px;">
+            <p><strong>Caja / Identificador:</strong> <span id="pdfSemTenant">--</span></p>
+            <p><strong>Fecha de Emisión del Cierre:</strong> <span id="pdfSemFechaEmision">--</span></p>
+        </div>
+
+        <h3 style="font-size: 13px; font-weight: bold; border-bottom: 1px solid #ccc; padding-bottom: 4px;">DESGLOSE POR DÍA DE LA SEMANA</h3>
+        <table style="width: 100%; font-size: 11px; border-collapse: collapse; margin-bottom: 20px;">
+            <thead>
+                <tr style="background: #eee; border-bottom: 1px solid #ccc;">
+                    <th style="padding: 6px; text-align: left;">Día</th>
+                    <th style="padding: 6px; text-align: right;">Yape Real</th>
+                    <th style="padding: 6px; text-align: right;">Efectivo</th>
+                    <th style="padding: 6px; text-align: right;">Total Día</th>
+                    <th style="padding: 6px; text-align: center;">Estado</th>
+                </tr>
+            </thead>
+            <tbody id="pdfSemTablaCuerpo">
+                <!-- Filas dinámicas -->
+            </tbody>
+            <tfoot>
+                <tr style="background: #742284; color: white; font-weight: bold;">
+                    <td style="padding: 8px;">TOTAL SEMANA</td>
+                    <td style="padding: 8px; text-align: right;" id="pdfSemTotalYape">S/ 0.00</td>
+                    <td style="padding: 8px; text-align: right;" id="pdfSemTotalEfectivo">S/ 0.00</td>
+                    <td style="padding: 8px; text-align: right;" id="pdfSemGranTotal">S/ 0.00</td>
+                    <td></td>
+                </tr>
+            </tfoot>
+        </table>
+
+        <div style="margin-top: 40px; display: flex; justify-content: space-between; font-size: 10px; text-align: center;">
+            <div style="width: 40%; border-top: 1px solid #000; padding-top: 5px;">
+                Firma Administrador General
+            </div>
+            <div style="width: 40%; border-top: 1px solid #000; padding-top: 5px;">
+                Firma Auditor / Contabilidad
             </div>
         </div>
     </div>
@@ -607,7 +721,9 @@
             }
         }
 
-        // CONTROL DE MODAL Y VERIFICACIÓN
+        // ==========================================
+        // CONTROL DE MODAL Y VERIFICACIÓN DIARIA
+        // ==========================================
         function abrirModalCierre() {
             const fechaActual = dateInput.value;
             const registrosHoy = registrosPorFecha[fechaActual] || [];
@@ -638,11 +754,10 @@
                 badgeModal.innerText = `⚠️ Alerta: Hay un sobrante de Yape de S/ ${dif.toFixed(2)}.`;
             }
 
-            // Resetear checkboxes
             document.getElementById('check1').checked = false;
             document.getElementById('check2').checked = false;
             document.getElementById('check3').checked = false;
-            validarPreguntas();
+            validarPreguntasDia();
 
             document.getElementById('modalCierre').classList.remove('hidden');
         }
@@ -651,7 +766,7 @@
             document.getElementById('modalCierre').classList.add('hidden');
         }
 
-        function validarPreguntas() {
+        function validarPreguntasDia() {
             const c1 = document.getElementById('check1').checked;
             const c2 = document.getElementById('check2').checked;
             const c3 = document.getElementById('check3').checked;
@@ -690,8 +805,72 @@
             }
         }
 
-        // GENERACIÓN E IMPRESIÓN DE REPORTE PDF
+        // ==========================================
+        // CONTROL DE MODAL Y VERIFICACIÓN SEMANAL
+        // ==========================================
+        function abrirModalReiniciarSemana() {
+            let totalYSem = 0, totalEfSem = 0, totalSem = 0;
+            Object.keys(datosSemana).forEach(dia => {
+                totalYSem += datosSemana[dia].yape;
+                totalEfSem += datosSemana[dia].efectivo;
+                totalSem += datosSemana[dia].total;
+            });
+
+            document.getElementById('modalSemYape').innerText = `S/ ${totalYSem.toFixed(2)}`;
+            document.getElementById('modalSemEfectivo').innerText = `S/ ${totalEfSem.toFixed(2)}`;
+            document.getElementById('modalSemTotal').innerText = `S/ ${totalSem.toFixed(2)}`;
+
+            document.getElementById('checkSem1').checked = false;
+            document.getElementById('checkSem2').checked = false;
+            document.getElementById('checkSem3').checked = false;
+            validarPreguntasSemana();
+
+            document.getElementById('modalReiniciarSemana').classList.remove('hidden');
+        }
+
+        function cerrarModalReiniciarSemana() {
+            document.getElementById('modalReiniciarSemana').classList.add('hidden');
+        }
+
+        function validarPreguntasSemana() {
+            const c1 = document.getElementById('checkSem1').checked;
+            const c2 = document.getElementById('checkSem2').checked;
+            const c3 = document.getElementById('checkSem3').checked;
+            const btn = document.getElementById('btnConfirmarReiniciarSemana');
+
+            if (c1 && c2 && c3) {
+                btn.disabled = false;
+                btn.className = "px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition shadow cursor-pointer";
+            } else {
+                btn.disabled = true;
+                btn.className = "px-5 py-2 bg-slate-300 text-slate-500 font-bold rounded-xl text-xs transition shadow cursor-not-allowed";
+            }
+        }
+
+        function ejecutarReiniciodeSemana() {
+            // Generar el PDF global semanal antes de reiniciar
+            generarPDFSemanal();
+
+            // Limpiar datos
+            Object.keys(datosSemana).forEach(d => {
+                datosSemana[d] = { yape: 0, efectivo: 0, total: 0, cerrado: false };
+            });
+
+            guardarLocalStorage();
+            renderTablaSemanal();
+            cerrarModalReiniciarSemana();
+        }
+
+        // ==========================================
+        // GENERACIÓN E IMPRESIÓN DE REPORTES PDF
+        // ==========================================
         function generarPDF(fechaSeleccionada) {
+            const reporteDiario = document.getElementById('reportePdf');
+            const reporteSemanal = document.getElementById('reporteSemanalPdf');
+            
+            reporteSemanal.classList.remove('print-active');
+            reporteDiario.classList.add('print-active');
+
             const registros = registrosPorFecha[fechaSeleccionada] || [];
             let sumYapeDecl = 0;
             let sumEfectivoDecl = 0;
@@ -722,6 +901,46 @@
             document.getElementById('pdfDiferencia').innerText = `S/ ${dif.toFixed(2)}`;
             document.getElementById('pdfEfectivo').innerText = `S/ ${sumEfectivoDecl.toFixed(2)}`;
             document.getElementById('pdfGranTotal').innerText = `S/ ${(totalYapeAppReal + sumEfectivoDecl).toFixed(2)}`;
+
+            window.print();
+        }
+
+        function generarPDFSemanal() {
+            const reporteDiario = document.getElementById('reportePdf');
+            const reporteSemanal = document.getElementById('reporteSemanalPdf');
+
+            reporteDiario.classList.remove('print-active');
+            reporteSemanal.classList.add('print-active');
+
+            const tbody = document.getElementById('pdfSemTablaCuerpo');
+            tbody.innerHTML = '';
+
+            let totalYSem = 0, totalEfSem = 0, totalSem = 0;
+
+            Object.keys(datosSemana).forEach(dia => {
+                const item = datosSemana[dia];
+                totalYSem += item.yape;
+                totalEfSem += item.efectivo;
+                totalSem += item.total;
+
+                const est = item.cerrado ? 'Cerrado' : 'Pendiente';
+
+                tbody.innerHTML += `
+                    <tr style="border-bottom: 1px solid #eee;">
+                        <td style="padding: 6px; font-weight: bold;">${dia}</td>
+                        <td style="padding: 6px; text-align: right;">S/ ${item.yape.toFixed(2)}</td>
+                        <td style="padding: 6px; text-align: right;">S/ ${item.efectivo.toFixed(2)}</td>
+                        <td style="padding: 6px; text-align: right; font-weight: bold;">S/ ${item.total.toFixed(2)}</td>
+                        <td style="padding: 6px; text-align: center;">${est}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('pdfSemTenant').innerText = codigoUnicoActual;
+            document.getElementById('pdfSemFechaEmision').innerText = new Date().toLocaleString();
+            document.getElementById('pdfSemTotalYape').innerText = `S/ ${totalYSem.toFixed(2)}`;
+            document.getElementById('pdfSemTotalEfectivo').innerText = `S/ ${totalEfSem.toFixed(2)}`;
+            document.getElementById('pdfSemGranTotal').innerText = `S/ ${totalSem.toFixed(2)}`;
 
             window.print();
         }
@@ -769,16 +988,6 @@
                 registrosPorFecha[fechaActual].splice(idx, 1);
                 guardarLocalStorage();
                 actualizarInterfazDia();
-            }
-        }
-
-        function reiniciarSemana() {
-            if (confirm('¿Deseas reiniciar el acumulado de la semana? Esto pondrá las métricas a S/ 0.00.')) {
-                Object.keys(datosSemana).forEach(d => {
-                    datosSemana[d] = { yape: 0, efectivo: 0, total: 0, cerrado: false };
-                });
-                guardarLocalStorage();
-                renderTablaSemanal();
             }
         }
 
