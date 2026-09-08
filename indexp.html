@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador y Monitor - Yape Notificador</title>
+    <!-- Estilos modernos y limpios -->
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f5f5f7;
+            color: #1d1d1f;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+        h1 {
+            text-align: center;
+            color: #7b1fa2; /* Color estilo Yape */
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        button {
+            background-color: #00c853;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #00b0ff;
+        }
+        .pago-item {
+            background: #fafafa;
+            border-left: 4px solid #00c853;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .pago-info h4 {
+            margin: 0 0 4px 0;
+            font-size: 16px;
+        }
+        .pago-info span {
+            font-size: 12px;
+            color: #86868b;
+        }
+        .pago-monto {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        .status {
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 15px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>🟣 Simulador Yape Notificador</h1>
+        <div id="status" class="status">Conectando a Firebase...</div>
+
+        <!-- Panel para simular un pago manual -->
+        <div class="card">
+            <h3>Prueba de Conexión</h3>
+            <p style="font-size: 14px; color: #555;">Haz clic en el botón para enviar un pago falso a Firebase. Si tu app está conectada, debería registrarlo y decirlo en voz alta.</p>
+            <button onclick="enviarPagoPrueba()">Simular Pago de S/ 25.50</button>
+        </div>
+
+        <!-- Historial en tiempo real -->
+        <div class="card">
+            <h3>Pagos Recibidos en Tiempo Real</h3>
+            <div id="listaPagos">
+                <p style="color: #999; text-align: center;">Esperando pagos...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- SDKs de Firebase (Versión compatible web modular/compat) -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+    <script>
+        // Configuración conectada directamente a tu proyecto de Firebase
+        const firebaseConfig = {
+            databaseURL: "https://yapenotificador-default-rtdb.firebaseio.com"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        const statusDiv = document.getElementById("status");
+        const listaPagosDiv = document.getElementById("listaPagos");
+
+        // Monitorear estado de conexión con Firebase
+        db.ref(".info/connected").on("value", function(snapshot) {
+            if (snapshot.val() === true) {
+                statusDiv.innerHTML = "✅ Conectado exitosamente a Firebase";
+                statusDiv.style.color = "green";
+            } else {
+                statusDiv.innerHTML = "⚠️ Desconectado o reconectando...";
+                statusDiv.style.color = "orange";
+            }
+        });
+
+        // Escuchar los pagos en tiempo real desde el nodo "pagos"
+        const pagosRef = db.ref("pagos");
+        pagosRef.on("child_added", function(snapshot) {
+            const data = snapshot.val();
+            
+            // Si es la primera vez que carga y la lista dice "Esperando pagos...", la limpiamos
+            if (listaPagosDiv.innerHTML.includes("Esperando pagos...")) {
+                listaPagosDiv.innerHTML = "";
+            }
+
+            const nombre = data.nombre || "Cliente de Prueba";
+            const monto = data.monto || "0.00";
+            
+            // Formatear la fecha si viene en timestamp
+            let horaTexto = "Hace un momento";
+            if (data.fecha) {
+                const fechaObj = new Date(data.fecha);
+                horaTexto = fechaObj.toLocaleTimeString();
+            }
+
+            // Crear elemento visual para el pago
+            const itemHTML = `
+                <div class="pago-item">
+                    <div class="pago-info">
+                        <h4>${nombre}</h4>
+                        <span>${horaTexto}</span>
+                    </div>
+                    <div class="pago-monto">S/ ${monto}</div>
+                </div>
+            `;
+
+            // Agregar arriba en la lista
+            listaPagosDiv.innerHTML = itemHTML + listaPagosDiv.innerHTML;
+        });
+
+        // Función para inyectar un pago de prueba manualmente
+        function enviarPagoPrueba() {
+            const nuevoPago = {
+                nombre: "Usuario Simulador Web",
+                monto: "25.50",
+                fecha: Date.now()
+            };
+
+            pagosRef.push(nuevoPago)
+                .then(() => {
+                    alert("¡Pago simulado enviado con éxito a Firebase!");
+                })
+                .catch((error) => {
+                    alert("Error al enviar: " + error.message);
+                });
+        }
+    </script>
+</body>
+</html>
