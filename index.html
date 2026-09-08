@@ -23,7 +23,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
-    <!-- ESTILOS EXCLUSIVOS PARA REPORTE IMPRESO / PDF -->
+    <!-- ESTILOS EXCLUSIVOS PARA REPORTE IMPRESO / DESCARGA PDF -->
     <style>
         @media print {
             body * {
@@ -169,7 +169,7 @@
                                         <th class="py-2.5 px-3">Efectivo</th>
                                         <th class="py-2.5 px-3">Total Día</th>
                                         <th class="py-2.5 px-3 text-center">Estado</th>
-                                        <th class="py-2.5 px-3 text-right">Reporte</th>
+                                        <th class="py-2.5 px-3 text-right">Reportes</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tablaSemanalBody" class="divide-y divide-slate-100 font-medium text-slate-700">
@@ -862,9 +862,9 @@
         }
 
         // ==========================================
-        // GENERACIÓN E IMPRESIÓN DE REPORTES PDF
+        // GENERACIÓN E IMPRESIÓN/DESCARGA DE REPORTES
         // ==========================================
-        function generarPDF(fechaSeleccionada) {
+        function prepararPlantillaDiaria(fechaSeleccionada) {
             const reporteDiario = document.getElementById('reportePdf');
             const reporteSemanal = document.getElementById('reporteSemanalPdf');
             
@@ -901,8 +901,19 @@
             document.getElementById('pdfDiferencia').innerText = `S/ ${dif.toFixed(2)}`;
             document.getElementById('pdfEfectivo').innerText = `S/ ${sumEfectivoDecl.toFixed(2)}`;
             document.getElementById('pdfGranTotal').innerText = `S/ ${(totalYapeAppReal + sumEfectivoDecl).toFixed(2)}`;
+        }
 
+        function generarPDF(fechaSeleccionada) {
+            prepararPlantillaDiaria(fechaSeleccionada);
             window.print();
+        }
+
+        function descargarPDF(fechaSeleccionada) {
+            prepararPlantillaDiaria(fechaSeleccionada);
+            const tituloOriginal = document.title;
+            document.title = `Reporte_Cierre_${codigoUnicoActual}_${fechaSeleccionada}`;
+            window.print();
+            document.title = tituloOriginal;
         }
 
         function generarPDFSemanal() {
@@ -942,7 +953,10 @@
             document.getElementById('pdfSemTotalEfectivo').innerText = `S/ ${totalEfSem.toFixed(2)}`;
             document.getElementById('pdfSemGranTotal').innerText = `S/ ${totalSem.toFixed(2)}`;
 
+            const tituloOriginal = document.title;
+            document.title = `Reporte_Semanal_${codigoUnicoActual}_${new Date().toISOString().split('T')[0]}`;
             window.print();
+            document.title = tituloOriginal;
         }
 
         function renderTablaSemanal() {
@@ -961,8 +975,17 @@
                     ? `<span class="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full text-[10px]">Cerrado</span>`
                     : `<span class="bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full text-[10px]">Pendiente</span>`;
 
-                const btnPdf = item.cerrado 
-                    ? `<button onclick="generarPDF('${item.fechaCompleta || dateInput.value}')" class="text-yape hover:text-yapeDark font-bold text-xs flex items-center gap-1 justify-end w-full">📄 PDF</button>`
+                const fechaDoc = item.fechaCompleta || dateInput.value;
+
+                const accionesPdf = item.cerrado 
+                    ? `<div class="flex items-center justify-end gap-1.5 w-full">
+                        <button onclick="generarPDF('${fechaDoc}')" title="Imprimir Ticket/Reporte" class="bg-yape/10 text-yape hover:bg-yape hover:text-white font-bold px-2 py-1 rounded-lg text-[11px] transition flex items-center gap-1">
+                            🖨️ PDF
+                        </button>
+                        <button onclick="descargarPDF('${fechaDoc}')" title="Guardar PDF en dispositivo" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white font-bold px-2 py-1 rounded-lg text-[11px] transition flex items-center gap-1">
+                            💾
+                        </button>
+                       </div>`
                     : `<span class="text-slate-300">-</span>`;
 
                 tbody.innerHTML += `
@@ -972,7 +995,7 @@
                         <td class="py-2.5 px-3 text-emerald-600">S/ ${item.efectivo.toFixed(2)}</td>
                         <td class="py-2.5 px-3 font-bold">S/ ${item.total.toFixed(2)}</td>
                         <td class="py-2.5 px-3 text-center">${estadoBadge}</td>
-                        <td class="py-2.5 px-3 text-right">${btnPdf}</td>
+                        <td class="py-2.5 px-3 text-right">${accionesPdf}</td>
                     </tr>
                 `;
             });
