@@ -67,7 +67,7 @@
                         <span id="textoSonido">Sonido: ON</span>
                     </button>
 
-                    <div id="estadoConexion" class="flex items-center gap-2 bg-yapeDark px-3 py-1.5 rounded-xl text-xs font-bold text-amber-300">
+                    <div id="estadoConexion" class="flex items-center gap-2 bg-yapeDark px-3 py-1.5 rounded-xl text-xs font-bold text-amber-300" aria-live="polite">
                         <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                         <span>Conectando...</span>
                     </div>
@@ -531,6 +531,7 @@
         let registrosYapeConocidos = 0;
         let primeraCarga = true;
         let sonidoActivado = localStorage.getItem('sonidoNotificacion') !== 'OFF';
+        let firebaseConectado = false;
 
         let datosSemana = JSON.parse(localStorage.getItem('datosSemana')) || {
             'Lun': { yape: 0, efectivo: 0, total: 0, cerrado: false },
@@ -546,15 +547,27 @@
 
         actualizarBotonSonido();
 
-        db.ref(".info/connected").on("value", (snap) => {
+        function actualizarEstadoConexion() {
             const estadoDiv = document.getElementById('estadoConexion');
-            if (snap.val() === true) {
+            const indicador = document.createElement('span');
+            const mensaje = document.createElement('span');
+
+            if (firebaseConectado) {
                 estadoDiv.className = "flex items-center gap-2 bg-emerald-900/60 text-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold";
-                estadoDiv.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>Online</span>`;
+                indicador.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+                mensaje.textContent = `Conectado: ${codigoUnicoActual}`;
             } else {
                 estadoDiv.className = "flex items-center gap-2 bg-red-900/60 text-red-300 px-3 py-1.5 rounded-xl text-xs font-bold";
-                estadoDiv.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-400"></span><span>Sin Conexión</span>`;
+                indicador.className = "w-2 h-2 rounded-full bg-red-400";
+                mensaje.textContent = "Sin conexión";
             }
+
+            estadoDiv.replaceChildren(indicador, mensaje);
+        }
+
+        db.ref(".info/connected").on("value", (snap) => {
+            firebaseConectado = snap.val() === true;
+            actualizarEstadoConexion();
         });
 
         sincronizarConFirebase(codigoUnicoActual, dateInput.value);
@@ -572,6 +585,7 @@
                 localStorage.setItem('codigoUnico', nuevoCodigo);
                 primeraCarga = true;
                 sincronizarConFirebase(codigoUnicoActual, dateInput.value);
+                actualizarEstadoConexion();
             }
         }
 
