@@ -108,7 +108,7 @@
                         <div>
                             <p class="text-xs font-bold uppercase tracking-wider text-slate-400">Total Yape App (Real)</p>
                             <p id="totalYapeGlobal" class="text-3xl font-extrabold text-yape mt-1">S/ 0.00</p>
-                            <span class="text-[11px] text-slate-400">Sincronizado desde Android</span>
+                            <span id="estadoSincronizacionYape" class="text-[11px] text-slate-400" aria-live="polite">Esperando pagos desde Android...</span>
                         </div>
                         <div class="w-12 h-12 bg-yapeLight rounded-xl flex items-center justify-center text-yape text-2xl">📱</div>
                     </div>
@@ -527,7 +527,9 @@
         codigoInput.value = codigoUnicoActual;
 
         let totalYapeAppReal = 0.00;
-        let listenerFirebaseActivo = null;
+        let listenersFirebaseActivos = [];
+        let pagosPorOrigen = { yapes: [], pagos: [] };
+        let origenesFirebaseCargados = new Set();
         let registrosYapeConocidos = 0;
         let primeraCarga = true;
         let sonidoActivado = localStorage.getItem('sonidoNotificacion') !== 'OFF';
@@ -635,37 +637,106 @@
             }
         }
 
-        function sincronizarConFirebase(tenant, fecha) {
-            if (listenerFirebaseActivo) db.ref(listenerFirebaseActivo).off();
+        function fechaLocalDesdeValor(valor) {
+            if (valor === undefined || valor === null || valor === '') return null;
+            if (typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(valor)) return valor;
 
-            const ruta = `yapes/${tenant}/${fecha}`;
-            listenerFirebaseActivo = ruta;
-            const yapesRef = db.ref(ruta);
+            const fecha = new Date(valor);
+            if (isNaN(fecha.getTime())) return null;
+            return new Date(fecha.getTime() - fecha.getTimezoneOffset() * 60000)
+                .toISOString()
+                .split('T')[0];
+        }
 
-            yapesRef.on('value', (snapshot) => {
-                let acumuladoYapeReal = 0.00;
-                let conteoActual = 0;
+        function normalizarPago(childSnapshot, origen, tenant, fechaSeleccionada) {
+            const itemOriginal = childSnapshot.val();
+            const item = typeof itemOriginal === 'object' && itemOriginal !== null ? itemOriginal : {};
+            const valor = typeof itemOriginal === 'object' && itemOriginal !== null
+                ? (item.monto ?? item.amount ?? item.valor ?? item.montoYape)
+                : itemOriginal;
+            const monto = typeof valor === 'string'
+                ? Number(valor.replace(/[^\d,.-]/g, '').replace(',', '.'))
+                : Number(valor);
 
-                if (snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        conteoActual++;
-                        const item = childSnapshot.val();
-                        let val = typeof item === 'object' && item !== null ? (item.monto ?? item.amount ?? item.valor ?? item.montoYape ?? 0) : item;
-                        const num = parseFloat(val);
-                        if (!isNaN(num)) acumuladoYapeReal += num;
-                    });
-                }
+            if (!Number.isFinite(monto)) return null;
 
-                if (!primeraCarga && conteoActual > registrosYapeConocidos && sonidoActivado) {
-                    reproducirSonidoYape();
-                }
+            // Las versiones anteriores de Android escriben en /pagos y guardan la
+            // fecha y, opcionalmente, el código de caja dentro de cada registro.
+            if (origen === 'pagos') {
+                const fechaPago = fechaLocalDesdeValor(item.fecha ?? item.timestamp ?? item.createdAt);
+                if (fechaPago && fechaPago !== fechaSeleccionada) return null;
 
-                registrosYapeConocidos = conteoActual;
-                primeraCarga = false;
+                const cajaPago = item.codigoCaja ?? item.codigoUnico ?? item.tenant ?? item.codigo;
+                if (cajaPago && String(cajaPago).trim() !== tenant) return null;
+            }
 
-                totalYapeAppReal = acumuladoYapeReal;
-                actualizarInterfazDia();
+            const marcaTiempo = item.fecha ?? item.timestamp ?? item.createdAt;
+            return {
+                id: childSnapshot.key,
+                monto,
+                firma: marcaTiempo === undefined || marcaTiempo === null
+                    ? null
+                    : `${monto}|${marcaTiempo}|${item.nombre ?? item.remitente ?? ''}`
+            };
+        }
+
+        function consolidarPagos() {
+            const pagosUnicos = [];
+            const idsConocidos = new Set();
+            const firmasConocidas = new Set();
+
+            [...pagosPorOrigen.yapes, ...pagosPorOrigen.pagos].forEach((pago) => {
+                // Si Android replica el mismo pago en ambas rutas, no debe sumarse dos veces.
+                if (idsConocidos.has(pago.id) || (pago.firma && firmasConocidas.has(pago.firma))) return;
+                pagosUnicos.push(pago);
+                idsConocidos.add(pago.id);
+                if (pago.firma) firmasConocidas.add(pago.firma);
             });
+
+            const pagos = pagosUnicos;
+            const conteoActual = pagos.length;
+            totalYapeAppReal = pagos.reduce((total, pago) => total + pago.monto, 0);
+
+            const cargaInicialCompleta = origenesFirebaseCargados.size === 2;
+            if (!primeraCarga && conteoActual > registrosYapeConocidos && sonidoActivado) {
+                reproducirSonidoYape();
+            }
+
+            registrosYapeConocidos = conteoActual;
+            if (cargaInicialCompleta) primeraCarga = false;
+            document.getElementById('estadoSincronizacionYape').innerText = conteoActual === 1
+                ? '1 yapeo recibido desde Android'
+                : `${conteoActual} yapeos recibidos desde Android`;
+            actualizarInterfazDia();
+        }
+
+        function escucharRutaPagos(ruta, origen, tenant, fecha) {
+            const referencia = db.ref(ruta);
+            const callback = (snapshot) => {
+                const pagos = [];
+                snapshot.forEach((childSnapshot) => {
+                    const pago = normalizarPago(childSnapshot, origen, tenant, fecha);
+                    if (pago) pagos.push(pago);
+                });
+                pagosPorOrigen[origen] = pagos;
+                origenesFirebaseCargados.add(origen);
+                consolidarPagos();
+            };
+
+            referencia.on('value', callback);
+            listenersFirebaseActivos.push({ referencia, callback });
+        }
+
+        function sincronizarConFirebase(tenant, fecha) {
+            listenersFirebaseActivos.forEach(({ referencia, callback }) => referencia.off('value', callback));
+            listenersFirebaseActivos = [];
+            pagosPorOrigen = { yapes: [], pagos: [] };
+            origenesFirebaseCargados = new Set();
+            registrosYapeConocidos = 0;
+
+            // Ruta actual y ruta heredada usada por las primeras versiones móviles.
+            escucharRutaPagos(`yapes/${tenant}/${fecha}`, 'yapes', tenant, fecha);
+            escucharRutaPagos('pagos', 'pagos', tenant, fecha);
         }
 
         document.getElementById('formCierreEmpleado').addEventListener('submit', function(e) {
