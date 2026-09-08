@@ -33,11 +33,20 @@
                 <span class="text-xs bg-yapeDark px-3 py-1 rounded-full font-medium">Control Diario y Semanal</span>
             </div>
             
-            <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3">
+                <!-- BOTÓN DE SONIDO (ON / OFF) -->
+                <button id="btnNotificacionSonido" onclick="toggleSonido()" 
+                    class="flex items-center gap-2 bg-yapeDark hover:bg-opacity-80 px-3 py-1.5 rounded-xl text-xs font-bold transition border border-white/20">
+                    <span id="iconoSonido" class="text-emerald-400 text-sm">🔔</span>
+                    <span id="textoSonido">Sonido: ON</span>
+                </button>
+
+                <!-- ESTADO DE CONEXIÓN -->
                 <div id="estadoConexion" class="flex items-center gap-2 bg-yapeDark px-3 py-1.5 rounded-xl text-xs font-bold text-amber-300">
                     <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
                     <span>Conectando...</span>
                 </div>
+
                 <div class="text-right hidden sm:block">
                     <p class="text-[10px] text-yapeLight font-medium uppercase tracking-wider">Estado Sistema</p>
                     <p class="text-xs font-bold">Firebase Activo</p>
@@ -261,6 +270,9 @@
 
         let totalYapeAppReal = 0.00;
         let listenerFirebaseActivo = null;
+        let registrosYapeConocidos = 0; // Control de conteo para detectar nuevos Yapes
+        let primeraCarga = true;
+        let sonidoActivado = localStorage.getItem('sonidoNotificacion') !== 'OFF';
 
         let datosSemana = JSON.parse(localStorage.getItem('datosSemana')) || {
             'Lun': { yape: 0, efectivo: 0, total: 0, cerrado: false },
@@ -273,6 +285,9 @@
         };
 
         let registrosPorFecha = JSON.parse(localStorage.getItem('registrosPorFecha')) || {};
+
+        // Inicializar interfaz del botón de sonido
+        actualizarBotonSonido();
 
         // Monitor de Conexión
         db.ref(".info/connected").on("value", (snap) => {
@@ -290,6 +305,7 @@
         renderTablaSemanal();
 
         dateInput.addEventListener('change', function() {
+            primeraCarga = true;
             sincronizarConFirebase(codigoUnicoActual, this.value);
         });
 
@@ -298,7 +314,74 @@
             if (nuevoCodigo) {
                 codigoUnicoActual = nuevoCodigo;
                 localStorage.setItem('codigoUnico', nuevoCodigo);
+                primeraCarga = true;
                 sincronizarConFirebase(codigoUnicoActual, dateInput.value);
+            }
+        }
+
+        // CONTROL DE SONIDO CON WEB AUDIO API
+        function toggleSonido() {
+            sonidoActivado = !sonidoActivado;
+            localStorage.setItem('sonidoNotificacion', sonidoActivado ? 'ON' : 'OFF');
+            actualizarBotonSonido();
+            if (sonidoActivado) {
+                reproducirSonidoYape(); // Sonido de prueba al activar
+            }
+        }
+
+        function actualizarBotonSonido() {
+            const btn = document.getElementById('btnNotificacionSonido');
+            const icono = document.getElementById('iconoSonido');
+            const texto = document.getElementById('textoSonido');
+
+            if (sonidoActivado) {
+                icono.innerText = "🔔";
+                icono.className = "text-emerald-400 text-sm";
+                texto.innerText = "Sonido: ON";
+            } else {
+                icono.innerText = "🔕";
+                icono.className = "text-red-400 text-sm";
+                texto.innerText = "Sonido: OFF";
+            }
+        }
+
+        // Sintetizador de sonido tipo "Clink!" metálico/moneda
+        function reproducirSonidoYape() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (!AudioContext) return;
+                const ctx = new AudioContext();
+
+                const now = ctx.currentTime;
+
+                // Oscilador 1 (Tono agudo campana)
+                const osc1 = ctx.createOscillator();
+                const gain1 = ctx.createGain();
+                osc1.type = 'sine';
+                osc1.frequency.setValueAtTime(1567.98, now); // Nota G6
+                osc1.frequency.exponentialRampToValueAtTime(783.99, now + 0.3); // Ramp a G5
+                gain1.gain.setValueAtTime(0.6, now);
+                gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+
+                // Oscilador 2 (Tono de brillo "Clink")
+                const osc2 = ctx.createOscillator();
+                const gain2 = ctx.createGain();
+                osc2.type = 'triangle';
+                osc2.frequency.setValueAtTime(2637.02, now); // Nota E7
+                gain2.gain.setValueAtTime(0.4, now);
+                gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+                osc1.connect(gain1);
+                osc2.connect(gain2);
+                gain1.connect(ctx.destination);
+                gain2.connect(ctx.destination);
+
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.3);
+                osc2.stop(now + 0.3);
+            } catch (e) {
+                console.warn("No se pudo reproducir el sonido de notificación:", e);
             }
         }
 
@@ -307,7 +390,6 @@
                 db.ref(listenerFirebaseActivo).off();
             }
 
-            // Mapea la ruta respetando la estructura del Service de Android
             const ruta = `yapes/${tenant}/${fecha}`;
             listenerFirebaseActivo = ruta;
 
@@ -315,9 +397,11 @@
 
             yapesRef.on('value', (snapshot) => {
                 let acumuladoYapeReal = 0.00;
+                let conteoActual = 0;
 
                 if (snapshot.exists()) {
                     snapshot.forEach((childSnapshot) => {
+                        conteoActual++;
                         const item = childSnapshot.val();
                         let val = 0;
                         if (typeof item === 'object' && item !== null) {
@@ -332,6 +416,14 @@
                         }
                     });
                 }
+
+                // Detectar si ingresó un nuevo registro de Yape
+                if (!primeraCarga && conteoActual > registrosYapeConocidos && sonidoActivado) {
+                    reproducirSonidoYape();
+                }
+
+                registrosYapeConocidos = conteoActual;
+                primeraCarga = false;
 
                 totalYapeAppReal = acumuladoYapeReal;
                 actualizarInterfazDia();
