@@ -19,7 +19,7 @@
             }
         }
     </script>
-    <!-- SDKs de Firebase (Compatibility Mode para CDN directo) -->
+    <!-- SDKs de Firebase (Compatibility Mode) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 </head>
@@ -33,7 +33,6 @@
                 <span class="text-xs bg-yapeDark px-3 py-1 rounded-full font-medium">Control Diario y Semanal</span>
             </div>
             
-            <!-- Indicador de Estado de Conexión en Tiempo Real -->
             <div class="flex items-center gap-4">
                 <div id="estadoConexion" class="flex items-center gap-2 bg-yapeDark px-3 py-1.5 rounded-xl text-xs font-bold text-amber-300">
                     <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
@@ -49,10 +48,28 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
+        <!-- CONFIGURACIÓN DE TIENDA / CÓDIGO ÚNICO -->
+        <section class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <span class="text-2xl">🏪</span>
+                <div>
+                    <h3 class="text-sm font-bold text-slate-900">Identificador de Caja (Multitenant)</h3>
+                    <p class="text-xs text-slate-500">Ingresa el código único asignado en la aplicación Android</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+                <input type="text" id="codigoUnicoInput" placeholder="Ej: CAJA-LOCAL-01" 
+                    class="bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl px-3 py-2 font-bold focus:outline-none focus:ring-2 focus:ring-yape w-full sm:w-64">
+                <button onclick="actualizarTenant()" class="bg-yape hover:bg-yapeDark text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow">
+                    Conectar
+                </button>
+            </div>
+        </section>
+
         <!-- BLOQUE SUPERIOR EN 2 COLUMNAS -->
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
-            <!-- COLUMNA IZQUIERDA: CARTAS DE RESUMEN DEL DÍA (5 Cols) -->
+            <!-- COLUMNA IZQUIERDA: CARTAS DE RESUMEN DEL DÍA -->
             <section class="lg:col-span-5 space-y-4">
                 <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
                     <span>📊</span> Resumen del Día Seleccionado
@@ -103,10 +120,9 @@
                 </div>
             </section>
 
-            <!-- COLUMNA DERECHA: CALENDARIO Y AVANCE SEMANAL (7 Cols) -->
+            <!-- COLUMNA DERECHA: CALENDARIO Y AVANCE SEMANAL -->
             <section class="lg:col-span-7 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6 flex flex-col justify-between">
                 <div>
-                    <!-- Encabezado y Selector de Fecha -->
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
                         <div>
                             <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -137,7 +153,7 @@
                                 </tr>
                             </thead>
                             <tbody id="tablaSemanalBody" class="divide-y divide-slate-100 font-medium text-slate-700">
-                                <!-- Filas generadas dinámicamente -->
+                                <!-- Filas dinámicas -->
                             </tbody>
                             <tfoot>
                                 <tr class="bg-slate-50 font-bold text-slate-900 border-t-2 border-slate-200">
@@ -205,7 +221,7 @@
                         </tr>
                     </thead>
                     <tbody id="tablaCajaBody" class="divide-y divide-slate-100 font-medium text-slate-700">
-                        <!-- Items de empleados cargados dinámicamente -->
+                        <!-- Items cargados dinámicamente -->
                     </tbody>
                 </table>
             </div>
@@ -213,9 +229,8 @@
 
     </main>
 
-    <!-- LÓGICA DE CONTROL Y CONEXIÓN A FIREBASE -->
+    <!-- LÓGICA DE CONTROL -->
     <script>
-        // 1. CONFIGURACIÓN DE FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBxP0MUvXfa9SiSLx_rgT8QiENs9LvUru4",
             authDomain: "yapenotificador.firebaseapp.com",
@@ -226,25 +241,27 @@
             appId: "1:156098992614:web:b4212e002d269d1cc39e27"
         };
 
-        // Inicializar Firebase
         if (!firebase.apps.length) {
             firebase.initializeApp(firebaseConfig);
         }
         const db = firebase.database();
 
-        // 2. ESTADO GLOBAL DE LA APLICACIÓN
         const dateInput = document.getElementById('selectFecha');
-        // ✅ CÓDIGO CORREGIDO (Obtiene la fecha local exacta YYYY-MM-DD):
+        const codigoInput = document.getElementById('codigoUnicoInput');
+
+        // Establecer fecha local YYYY-MM-DD
         const hoy = new Date();
         const offset = hoy.getTimezoneOffset() * 60000;
         const fechaLocal = new Date(hoy.getTime() - offset).toISOString().split('T')[0];
-        
         dateInput.value = fechaLocal;
+
+        // Recuperar último código único ingresado
+        let codigoUnicoActual = localStorage.getItem('codigoUnico') || 'DEFAULT';
+        codigoInput.value = codigoUnicoActual;
 
         let totalYapeAppReal = 0.00;
         let listenerFirebaseActivo = null;
 
-        // Cargar datos de la semana desde localStorage
         let datosSemana = JSON.parse(localStorage.getItem('datosSemana')) || {
             'Lun': { yape: 0, efectivo: 0, total: 0, cerrado: false },
             'Mar': { yape: 0, efectivo: 0, total: 0, cerrado: false },
@@ -255,10 +272,9 @@
             'Dom': { yape: 0, efectivo: 0, total: 0, cerrado: false }
         };
 
-        // Registros de empleados por fecha
         let registrosPorFecha = JSON.parse(localStorage.getItem('registrosPorFecha')) || {};
 
-        // 3. MONITOR DE CONEXIÓN A INTERNET / FIREBASE
+        // Monitor de Conexión
         db.ref(".info/connected").on("value", (snap) => {
             const estadoDiv = document.getElementById('estadoConexion');
             if (snap.val() === true) {
@@ -270,36 +286,39 @@
             }
         });
 
-        // 4. INICIALIZACIÓN
-        sincronizarConFirebase(dateInput.value);
+        sincronizarConFirebase(codigoUnicoActual, dateInput.value);
         renderTablaSemanal();
 
         dateInput.addEventListener('change', function() {
-            sincronizarConFirebase(this.value);
+            sincronizarConFirebase(codigoUnicoActual, this.value);
         });
 
-        // 5. ESCUCHA DE YAPES EN TIEMPO REAL (MEJORADO)
-        function sincronizarConFirebase(fecha) {
+        function actualizarTenant() {
+            const nuevoCodigo = codigoInput.value.trim();
+            if (nuevoCodigo) {
+                codigoUnicoActual = nuevoCodigo;
+                localStorage.setItem('codigoUnico', nuevoCodigo);
+                sincronizarConFirebase(codigoUnicoActual, dateInput.value);
+            }
+        }
+
+        function sincronizarConFirebase(tenant, fecha) {
             if (listenerFirebaseActivo) {
-                db.ref(`yapes/${listenerFirebaseActivo}`).off();
+                db.ref(listenerFirebaseActivo).off();
             }
 
-            listenerFirebaseActivo = fecha;
-            const yapesRef = db.ref(`yapes/${fecha}`);
+            // Mapea la ruta respetando la estructura del Service de Android
+            const ruta = `yapes/${tenant}/${fecha}`;
+            listenerFirebaseActivo = ruta;
 
-            console.log(`📡 Consultando en Firebase la ruta: yapes/${fecha}`);
+            const yapesRef = db.ref(ruta);
 
             yapesRef.on('value', (snapshot) => {
                 let acumuladoYapeReal = 0.00;
-                const dataRoot = snapshot.val();
-
-                console.log(`📦 Datos recibidos en yapes/${fecha}:`, dataRoot);
 
                 if (snapshot.exists()) {
                     snapshot.forEach((childSnapshot) => {
                         const item = childSnapshot.val();
-
-                        // Detecta si es un objeto con campo de monto o si es directamente el número
                         let val = 0;
                         if (typeof item === 'object' && item !== null) {
                             val = item.monto ?? item.amount ?? item.valor ?? item.montoYape ?? 0;
@@ -312,24 +331,15 @@
                             acumuladoYapeReal += num;
                         }
                     });
-                } else {
-                    console.warn(`⚠️ No hay datos guardados bajo la ruta yapes/${fecha}`);
                 }
 
                 totalYapeAppReal = acumuladoYapeReal;
                 actualizarInterfazDia();
             }, (error) => {
-                console.error("❌ Error de lectura/permisos en Firebase:", error);
-                alert("Error al leer desde Firebase. Abre F12 para ver el detalle de permisos.");
+                console.error("❌ Error de lectura en Firebase:", error);
             });
         }
 
-        // DIAGNÓSTICO: Imprime toda la rama 'yapes' para detectar si Android envía otro formato de fecha
-        db.ref("yapes").on("value", (snap) => {
-            console.log("🔍 Estructura general de las fechas bajo 'yapes' en Firebase:", snap.val());
-        });
-
-        // 6. DECLARACIÓN DE EMPLEADOS
         document.getElementById('formCierreEmpleado').addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -350,7 +360,6 @@
             this.reset();
         });
 
-        // 7. RENDERING Y AUDITORÍA
         function actualizarInterfazDia() {
             const fechaActual = dateInput.value;
             const registrosHoy = registrosPorFecha[fechaActual] || [];
@@ -365,17 +374,19 @@
                 sumYapeDeclarado += item.yape;
                 sumEfectivoDeclarado += item.efectivo;
 
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50 transition">
-                        <td class="px-4 py-3 font-bold text-slate-900">${item.nombre}</td>
-                        <td class="px-4 py-3 text-yape font-semibold">S/ ${item.yape.toFixed(2)}</td>
-                        <td class="px-4 py-3 text-emerald-600 font-semibold">S/ ${item.efectivo.toFixed(2)}</td>
-                        <td class="px-4 py-3 font-bold text-slate-900">S/ ${item.total.toFixed(2)}</td>
-                        <td class="px-4 py-3 text-right">
-                            <button onclick="eliminarRegistro(${index})" class="text-red-500 hover:text-red-700 text-xs font-bold">Eliminar</button>
-                        </td>
-                    </tr>
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-bold text-slate-900"></td>
+                    <td class="px-4 py-3 text-yape font-semibold">S/ ${item.yape.toFixed(2)}</td>
+                    <td class="px-4 py-3 text-emerald-600 font-semibold">S/ ${item.efectivo.toFixed(2)}</td>
+                    <td class="px-4 py-3 font-bold text-slate-900">S/ ${item.total.toFixed(2)}</td>
+                    <td class="px-4 py-3 text-right">
+                        <button onclick="eliminarRegistro(${index})" class="text-red-500 hover:text-red-700 text-xs font-bold">Eliminar</button>
+                    </td>
                 `;
+                tr.children[0].textContent = item.nombre;
+                tbody.appendChild(tr);
             });
 
             document.getElementById('totalYapeGlobal').innerText = `S/ ${totalYapeAppReal.toFixed(2)}`;
@@ -402,7 +413,6 @@
             }
         }
 
-        // 8. CONTROL SEMANAL Y PERSISTENCIA
         function renderTablaSemanal() {
             const tbody = document.getElementById('tablaSemanalBody');
             tbody.innerHTML = '';
