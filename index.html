@@ -19,7 +19,7 @@
             }
         }
     </script>
-    <!-- SDKs de Firebase (Compatibilitiy Mode para CDN directo) -->
+    <!-- SDKs de Firebase (Compatibility Mode para CDN directo) -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 </head>
@@ -215,7 +215,7 @@
 
     <!-- LÓGICA DE CONTROL Y CONEXIÓN A FIREBASE -->
     <script>
-        // 1. CONFIGURACIÓN DE FIREBASE (Reemplazar con tus llaves reales)
+        // 1. CONFIGURACIÓN DE FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBxP0MUvXfa9SiSLx_rgT8QiENs9LvUru4",
             authDomain: "yapenotificador.firebaseapp.com",
@@ -223,8 +223,7 @@
             projectId: "yapenotificador",
             storageBucket: "yapenotificador.firebasestorage.app",
             messagingSenderId: "156098992614",
-            appId: "1:156098992614:web:b4212e002d269d1cc39e27",
-            
+            appId: "1:156098992614:web:b4212e002d269d1cc39e27"
         };
 
         // Inicializar Firebase
@@ -241,7 +240,7 @@
         let totalYapeAppReal = 0.00;
         let listenerFirebaseActivo = null;
 
-        // Cargar datos de la semana desde localStorage si existen
+        // Cargar datos de la semana desde localStorage
         let datosSemana = JSON.parse(localStorage.getItem('datosSemana')) || {
             'Lun': { yape: 0, efectivo: 0, total: 0, cerrado: false },
             'Mar': { yape: 0, efectivo: 0, total: 0, cerrado: false },
@@ -252,12 +251,11 @@
             'Dom': { yape: 0, efectivo: 0, total: 0, cerrado: false }
         };
 
-        // Arreglo de registros de empleados por fecha
+        // Registros de empleados por fecha
         let registrosPorFecha = JSON.parse(localStorage.getItem('registrosPorFecha')) || {};
 
         // 3. MONITOR DE CONEXIÓN A INTERNET / FIREBASE
-        const connectedRef = db.ref(".info/connected");
-        connectedRef.on("value", (snap) => {
+        db.ref(".info/connected").on("value", (snap) => {
             const estadoDiv = document.getElementById('estadoConexion');
             if (snap.val() === true) {
                 estadoDiv.className = "flex items-center gap-2 bg-emerald-900/60 text-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold";
@@ -272,14 +270,12 @@
         sincronizarConFirebase(dateInput.value);
         renderTablaSemanal();
 
-        // Escuchar cambio de fecha en el selector
         dateInput.addEventListener('change', function() {
             sincronizarConFirebase(this.value);
         });
 
-        // 5. ESCUCHA DE YAPES EN TIEMPO REAL (FIREBASE)
+        // 5. ESCUCHA DE YAPES EN TIEMPO REAL (MEJORADO)
         function sincronizarConFirebase(fecha) {
-            // Cancelar escuchador anterior si cambia la fecha
             if (listenerFirebaseActivo) {
                 db.ref(`yapes/${listenerFirebaseActivo}`).off();
             }
@@ -287,18 +283,47 @@
             listenerFirebaseActivo = fecha;
             const yapesRef = db.ref(`yapes/${fecha}`);
 
+            console.log(`📡 Consultando en Firebase la ruta: yapes/${fecha}`);
+
             yapesRef.on('value', (snapshot) => {
                 let acumuladoYapeReal = 0.00;
-                
-                snapshot.forEach((childSnapshot) => {
-                    const data = childSnapshot.val();
-                    acumuladoYapeReal += parseFloat(data.monto || 0);
-                });
+                const dataRoot = snapshot.val();
+
+                console.log(`📦 Datos recibidos en yapes/${fecha}:`, dataRoot);
+
+                if (snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const item = childSnapshot.val();
+
+                        // Detecta si es un objeto con campo de monto o si es directamente el número
+                        let val = 0;
+                        if (typeof item === 'object' && item !== null) {
+                            val = item.monto ?? item.amount ?? item.valor ?? item.montoYape ?? 0;
+                        } else {
+                            val = item;
+                        }
+
+                        const num = parseFloat(val);
+                        if (!isNaN(num)) {
+                            acumuladoYapeReal += num;
+                        }
+                    });
+                } else {
+                    console.warn(`⚠️ No hay datos guardados bajo la ruta yapes/${fecha}`);
+                }
 
                 totalYapeAppReal = acumuladoYapeReal;
                 actualizarInterfazDia();
+            }, (error) => {
+                console.error("❌ Error de lectura/permisos en Firebase:", error);
+                alert("Error al leer desde Firebase. Abre F12 para ver el detalle de permisos.");
             });
         }
+
+        // DIAGNÓSTICO: Imprime toda la rama 'yapes' para detectar si Android envía otro formato de fecha
+        db.ref("yapes").on("value", (snap) => {
+            console.log("🔍 Estructura general de las fechas bajo 'yapes' en Firebase:", snap.val());
+        });
 
         // 6. DECLARACIÓN DE EMPLEADOS
         document.getElementById('formCierreEmpleado').addEventListener('submit', function(e) {
@@ -349,12 +374,10 @@
                 `;
             });
 
-            // Actualizar tarjetas de la izquierda
             document.getElementById('totalYapeGlobal').innerText = `S/ ${totalYapeAppReal.toFixed(2)}`;
             document.getElementById('totalEfectivoGlobal').innerText = `S/ ${sumEfectivoDeclarado.toFixed(2)}`;
             document.getElementById('granTotalGlobal').innerText = `S/ ${(totalYapeAppReal + sumEfectivoDeclarado).toFixed(2)}`;
 
-            // Auditoría
             auditarCaja(totalYapeAppReal, sumYapeDeclarado);
         }
 
@@ -426,7 +449,7 @@
                 };
                 guardarLocalStorage();
                 renderTablaSemanal();
-                alert(`¡El día ${nombreDia} (${dateInput.value}) se ha cerrado y guardado en la semana!`);
+                alert(`¡El día ${nombreDia} (${dateInput.value}) se ha cerrado y guardado!`);
             }
         }
 
@@ -440,7 +463,7 @@
         }
 
         function reiniciarSemana() {
-            if (confirm('¿Deseas reiniciar el acumulado de la semana? Esto pondrá las métricas semanales a 0.')) {
+            if (confirm('¿Deseas reiniciar el acumulado de la semana? Esto pondrá las métricas a S/ 0.00.')) {
                 Object.keys(datosSemana).forEach(d => {
                     datosSemana[d] = { yape: 0, efectivo: 0, total: 0, cerrado: false };
                 });
