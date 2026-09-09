@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light" />
+  <title>Panel Maestro - Yape Notificador</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            yape: '#742284',
+            yapeDark: '#561863',
+            yapeLight: '#f4eaf6'
+          }
+        }
+      }
+    };
+  </script>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+  <style>
+    [hidden] { display: none !important; }
+    .modal-backdrop { background: rgba(15, 23, 42, .65); backdrop-filter: blur(4px); }
+    .toast-enter { animation: toastIn .18s ease-out; }
+    @keyframes toastIn { from { transform: translateY(8px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  </style>
+</head>
+
+<body class="min-h-screen bg-slate-100 text-slate-800">
+
+  <header class="bg-yape text-white shadow-md sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 min-h-16 py-3 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+      <div>
+        <h1 class="text-xl sm:text-2xl font-black tracking-wide">YAPE NOTIFICADOR</h1>
+        <p class="text-xs text-purple-100 mt-0.5">Panel Maestro de Negocios</p>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap">
+        <span id="modoBadge" class="inline-flex items-center bg-amber-100 text-amber-900 border border-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold">Modo de prueba</span>
+        <div id="estadoConexion" class="inline-flex items-center gap-2 bg-yapeDark px-3 py-1.5 rounded-xl text-xs font-bold" aria-live="polite">
+          <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          <span>Conectando...</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- MÉTRICAS -->
+    <section class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <article class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <p class="text-[11px] sm:text-xs uppercase font-bold text-slate-400">Negocios</p>
+        <p id="contadorNegocios" class="text-3xl font-black text-slate-900 mt-2">0</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <p class="text-[11px] sm:text-xs uppercase font-bold text-slate-400">Activos</p>
+        <p id="contadorActivos" class="text-3xl font-black text-emerald-600 mt-2">0</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <p class="text-[11px] sm:text-xs uppercase font-bold text-slate-400">Suspendidos</p>
+        <p id="contadorSuspendidos" class="text-3xl font-black text-red-600 mt-2">0</p>
+      </article>
+
+      <article class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <p class="text-[11px] sm:text-xs uppercase font-bold text-slate-400">Cajas activas</p>
+        <p id="contadorCajas" class="text-3xl font-black text-yape mt-2">0</p>
+      </article>
+    </section>
+
+    <!-- CREAR NEGOCIO -->
+    <section class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-black text-slate-900">Crear negocio</h2>
+          <p class="text-sm text-slate-500 mt-1">Genera un código único para vincular Android y la web del negocio.</p>
+        </div>
+        <button id="btnExportarCsv" type="button" class="self-start bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition">Exportar negocios CSV</button>
+      </div>
+
+      <form id="formCrearNegocio" class="mt-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-12 gap-4 items-end">
+        <div class="xl:col-span-3">
+          <label for="nombreNegocio" class="block text-xs uppercase font-bold text-slate-500 mb-2">Nombre *</label>
+          <input id="nombreNegocio" type="text" maxlength="80" required placeholder="Ej: Bodega Central" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yape" />
+        </div>
+
+        <div class="xl:col-span-2">
+          <label for="contactoNegocio" class="block text-xs uppercase font-bold text-slate-500 mb-2">Contacto</label>
+          <input id="contactoNegocio" type="text" maxlength="80" placeholder="Nombre o teléfono" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yape" />
+        </div>
+
+        <div class="xl:col-span-2">
+          <label for="planNegocio" class="block text-xs uppercase font-bold text-slate-500 mb-2">Plan</label>
+          <select id="planNegocio" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yape">
+            <option value="prueba">Prueba</option>
+            <option value="mensual">Mensual</option>
+            <option value="trimestral">Trimestral</option>
+            <option value="anual">Anual</option>
+            <option value="personalizado">Personalizado</option>
+          </select>
+        </div>
+
+        <div class="xl:col-span-2">
+          <label for="venceNegocio" class="block text-xs uppercase font-bold text-slate-500 mb-2">Vencimiento</label>
+          <input id="venceNegocio" type="date" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yape" />
+        </div>
+
+        <div class="xl:col-span-2">
+          <label for="codigoGenerado" class="block text-xs uppercase font-bold text-slate-500 mb-2">Código</label>
+          <div class="flex gap-2">
+            <input id="codigoGenerado" type="text" readonly class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2.5 text-sm font-black tracking-wider text-yape" />
+            <button type="button" id="btnRegenerar" class="shrink-0 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl px-3 transition" title="Generar otro código">↻</button>
+          </div>
+        </div>
+
+        <div class="xl:col-span-1">
+          <button id="btnCrear" type="submit" class="w-full bg-yape hover:bg-yapeDark text-white font-bold px-4 py-2.5 rounded-xl shadow transition">Crear</button>
+        </div>
+      </form>
+
+      <div class="mt-4">
+        <label for="notasNegocio" class="block text-xs uppercase font-bold text-slate-500 mb-2">Notas internas</label>
+        <textarea id="notasNegocio" maxlength="300" rows="2" placeholder="Opcional" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yape"></textarea>
+      </div>
+
+      <p id="mensajeFormulario" class="mt-4 text-sm font-medium hidden" aria-live="polite"></p>
+    </section>
+
+    <!-- FILTROS Y TABLA -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="p-6 border-b border-slate-100 space-y-4">
+        <div class="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
+          <div>
+            <h2 class="text-lg font-black text-slate-900">Negocios registrados</h2>
+            <p class="text-sm text-slate-500 mt-1">Administra cada código sin cargar los yapeos de todos los negocios.</p>
+          </div>
+          <button id="btnRecargarNegocios" type="button" class="self-start bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition">Actualizar lista</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <input id="buscarNegocio" type="search" placeholder="Buscar nombre, código o contacto..." class="md:col-span-2 w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yape" />
+
+          <select id="filtroServicio" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yape">
+            <option value="todos">Todos los servicios</option>
+            <option value="activo">Activos</option>
+            <option value="suspendido">Suspendidos</option>
+            <option value="vencido">Vencidos</option>
+          </select>
+
+          <select id="filtroCaja" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yape">
+            <option value="todas">Todas las cajas</option>
+            <option value="activa">Caja activa</option>
+            <option value="libre">Caja libre</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[1100px] text-sm">
+          <thead>
+            <tr class="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wide">
+              <th class="text-left px-6 py-3">Negocio</th>
+              <th class="text-left px-6 py-3">Código</th>
+              <th class="text-left px-6 py-3">Plan</th>
+              <th class="text-center px-6 py-3">Servicio</th>
+              <th class="text-center px-6 py-3">Caja</th>
+              <th class="text-left px-6 py-3">Vence</th>
+              <th class="text-right px-6 py-3">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tablaNegocios" class="divide-y divide-slate-100">
+            <tr><td colspan="7" class="px-6 py-10 text-center text-slate-400">Cargando negocios...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="px-6 py-4 border-t border-slate-100 text-xs text-slate-400">
+        Mostrando <span id="contadorFiltrados" class="font-bold text-slate-600">0</span> negocio(s).
+      </div>
+    </section>
+
+    <!-- AVISO DE INTEGRACIÓN -->
+    <section class="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-sm text-amber-900">
+      <p class="font-black">Integración con Android</p>
+      <p class="mt-1 leading-relaxed">
+        Este panel escribe el estado en <strong>negocios/{codigo}/activo</strong> y <strong>negocios/{codigo}/caja_activa</strong>.
+        Para que una app que ya está abierta se detenga inmediatamente al suspender un negocio, Android debe escuchar el campo <strong>activo</strong> en tiempo real.
+      </p>
+    </section>
+
+  </main>
+
+  <!-- MODAL DETALLE -->
+  <div id="modalDetalle" class="fixed inset-0 z-50 modal-backdrop p-4 flex items-center justify-center" hidden>
+    <div class="bg-white w-full max-w-5xl max-h-[92vh] overflow-y-auto rounded-2xl shadow-2xl border border-slate-200">
+      <div class="sticky top-0 bg-white z-10 px-6 py-4 border-b border-slate-100 flex items-start justify-between gap-4">
+        <div>
+          <h3 id="detalleTitulo" class="text-xl font-black text-slate-900">Detalle del negocio</h3>
+          <p id="detalleCodigo" class="text-sm font-bold text-yape mt-1">—</p>
+        </div>
+        <button id="btnCerrarDetalle" type="button" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">×</button>
+      </div>
+
+      <div class="p-6 space-y-6">
+        <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <p class="text-[11px] uppercase font-bold text-slate-400">Servicio</p>
+            <div id="detalleServicio" class="mt-2"></div>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <p class="text-[11px] uppercase font-bold text-slate-400">Caja</p>
+            <div id="detalleCaja" class="mt-2"></div>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <p class="text-[11px] uppercase font-bold text-slate-400">Yape hoy</p>
+            <p id="detalleTotalHoy" class="text-xl font-black text-yape mt-2">—</p>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+            <p class="text-[11px] uppercase font-bold text-slate-400">Operaciones hoy</p>
+            <p id="detalleConteoHoy" class="text-xl font-black text-slate-900 mt-2">—</p>
+          </div>
+        </section>
+
+        <section class="border border-slate-200 rounded-2xl p-5">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h4 class="font-black text-slate-900">Información</h4>
+              <p class="text-xs text-slate-400 mt-1">Editar solo modifica /negocios.</p>
+            </div>
+            <button id="btnEditarDesdeDetalle" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition">Editar</button>
+          </div>
+          <dl id="detalleInfo" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 text-sm"></dl>
+        </section>
+
+        <section class="border border-slate-200 rounded-2xl overflow-hidden">
+          <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+            <div>
+              <h4 class="font-black text-slate-900">Yapeos del día</h4>
+              <p class="text-xs text-slate-400 mt-1">Se cargan solo al abrir/actualizar este negocio para ahorrar lecturas.</p>
+            </div>
+            <button id="btnActualizarYapeos" type="button" class="bg-yapeLight hover:bg-purple-100 text-yape px-4 py-2 rounded-xl text-xs font-bold transition">Actualizar yapeos</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[700px] text-sm">
+              <thead><tr class="bg-slate-50 text-[11px] uppercase text-slate-400"><th class="text-left px-5 py-3">Hora</th><th class="text-left px-5 py-3">Cliente</th><th class="text-left px-5 py-3">Tipo</th><th class="text-right px-5 py-3">Monto</th></tr></thead>
+              <tbody id="detalleYapeos" class="divide-y divide-slate-100"><tr><td colspan="4" class="px-5 py-8 text-center text-slate-400">Abre un negocio para consultar sus movimientos.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="flex flex-wrap gap-3 pt-2 border-t border-slate-100">
+          <button id="btnToggleServicioDetalle" type="button" class="px-4 py-2 rounded-xl text-xs font-bold border transition">Cambiar servicio</button>
+          <button id="btnLiberarCajaDetalle" type="button" class="px-4 py-2 rounded-xl text-xs font-bold border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 transition">Liberar caja</button>
+          <button id="btnCopiarCodigoDetalle" type="button" class="px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition">Copiar código</button>
+          <button id="btnEliminarDetalle" type="button" class="ml-auto px-4 py-2 rounded-xl text-xs font-bold border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 transition">Eliminar negocio</button>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL EDITAR -->
+  <div id="modalEditar" class="fixed inset-0 z-[60] modal-backdrop p-4 flex items-center justify-center" hidden>
+    <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl border border-slate-200">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div><h3 class="text-lg font-black text-slate-900">Editar negocio</h3><p id="editarCodigoLabel" class="text-xs text-yape font-bold mt-1">—</p></div>
+        <button id="btnCerrarEditar" type="button" class="text-slate-400 hover:text-slate-700 text-2xl font-bold">×</button>
+      </div>
+
+      <form id="formEditarNegocio" class="p-6 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div><label class="block text-xs uppercase font-bold text-slate-500 mb-2">Nombre *</label><input id="editarNombre" required maxlength="80" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yape" /></div>
+          <div><label class="block text-xs uppercase font-bold text-slate-500 mb-2">Contacto</label><input id="editarContacto" maxlength="80" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yape" /></div>
+          <div><label class="block text-xs uppercase font-bold text-slate-500 mb-2">Plan</label><select id="editarPlan" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yape"><option value="prueba">Prueba</option><option value="mensual">Mensual</option><option value="trimestral">Trimestral</option><option value="anual">Anual</option><option value="personalizado">Personalizado</option></select></div>
+          <div><label class="block text-xs uppercase font-bold text-slate-500 mb-2">Vencimiento</label><input id="editarVence" type="date" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yape" /></div>
+        </div>
+        <div><label class="block text-xs uppercase font-bold text-slate-500 mb-2">Notas</label><textarea id="editarNotas" maxlength="300" rows="3" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yape"></textarea></div>
+        <div class="flex justify-end gap-3 pt-2"><button id="btnCancelarEditar" type="button" class="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold">Cancelar</button><button id="btnGuardarEditar" type="submit" class="px-5 py-2 rounded-xl bg-yape hover:bg-yapeDark text-white text-xs font-bold shadow">Guardar cambios</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOASTS -->
+  <div id="toastContainer" class="fixed right-4 bottom-4 z-[100] space-y-2 w-[min(92vw,380px)]" aria-live="polite"></div>
+
+  <script>
+    // ============================================================
+    // FIREBASE
+    // ============================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyBxP0MUvXfa9SiSLx_rgT8QiENs9LvUru4",
+      authDomain: "yapenotificador.firebaseapp.com",
+      databaseURL: "https://yapenotificador-default-rtdb.firebaseio.com",
+      projectId: "yapenotificador",
+      storageBucket: "yapenotificador.firebasestorage.app",
+      messagingSenderId: "156098992614",
+      appId: "1:156098992614:web:b4212e002d269d1cc39e27"
+    };
+
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // ============================================================
+    // ESTADO
+    // ============================================================
+    const ALFABETO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let negociosActuales = {};
+    let codigoDetalleActual = null;
+    let codigoEdicionActual = null;
+    let listenerNegociosActivo = false;
+
+    // ============================================================
+    // DOM
+    // ============================================================
+    const $ = (id) => document.getElementById(id);
+    const tablaNegocios = $('tablaNegocios');
+    const formCrearNegocio = $('formCrearNegocio');
+    const formEditarNegocio = $('formEditarNegocio');
+
+    // ============================================================
+    // UTILIDADES
+    // ============================================================
+    function escaparHtml(valor) {
+      return String(valor ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function generarParteAleatoria(longitud = 6) {
+      const array = new Uint32Array(longitud);
+      crypto.getRandomValues(array);
+      return Array.from(array).map(n => ALFABETO[n % ALFABETO.length]).join('');
+    }
+
+    function generarCodigo() {
+      return `YP-${generarParteAleatoria(6)}`;
+    }
+
+    function codigoValido(codigo) {
+      return /^YP-[A-Z2-9]{6}$/.test(codigo);
+    }
+
+    function hoyLocal() {
+      const ahora = new Date();
+      const offset = ahora.getTimezoneOffset() * 60000;
+      return new Date(ahora.getTime() - offset).toISOString().split('T')[0];
+    }
+
+    function fechaLegible(valor) {
+      if (!valor) return '—';
+      if (typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+        return new Date(`${valor}T00:00:00`).toLocaleDateString('es-PE');
+      }
+      const numero = Number(valor);
+      return Number.isFinite(numero) && numero > 0 ? new Date(numero).toLocaleString('es-PE') : '—';
+    }
+
+    function monto(valor) {
+      const n = Number(valor);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function esVencido(item) {
+      const vence = item?.vence_en;
+      if (!vence || !/^\d{4}-\d{2}-\d{2}$/.test(vence)) return false;
+      return vence < hoyLocal();
+    }
+
+    function badgeServicio(item) {
+      if (item?.activo !== true) return '<span class="inline-flex bg-red-100 text-red-700 px-2.5 py-1 rounded-full text-xs font-bold">Suspendido</span>';
+      if (esVencido(item)) return '<span class="inline-flex bg-amber-100 text-amber-800 px-2.5 py-1 rounded-full text-xs font-bold">Vencido</span>';
+      return '<span class="inline-flex bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full text-xs font-bold">Activo</span>';
+    }
+
+    function badgeCaja(item) {
+      return item?.caja_activa === true
+        ? '<span class="inline-flex bg-yapeLight text-yape px-2.5 py-1 rounded-full text-xs font-bold">Activa</span>'
+        : '<span class="inline-flex bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full text-xs font-bold">Libre</span>';
+    }
+
+    function toast(mensaje, tipo = 'ok') {
+      const colores = tipo === 'error'
+        ? 'bg-red-700 text-white'
+        : tipo === 'warning'
+          ? 'bg-amber-500 text-slate-950'
+          : 'bg-slate-900 text-white';
+      const div = document.createElement('div');
+      div.className = `toast-enter rounded-xl shadow-xl px-4 py-3 text-sm font-medium ${colores}`;
+      div.textContent = mensaje;
+      $('toastContainer').appendChild(div);
+      setTimeout(() => div.remove(), 3200);
+    }
+
+    function mostrarMensajeFormulario(texto, tipo = 'ok') {
+      const el = $('mensajeFormulario');
+      el.hidden = false;
+      el.className = `mt-4 text-sm font-medium ${tipo === 'error' ? 'text-red-700' : tipo === 'warning' ? 'text-amber-700' : 'text-emerald-700'}`;
+      el.textContent = texto;
+    }
+
+    function limpiarMensajeFormulario() {
+      $('mensajeFormulario').hidden = true;
+      $('mensajeFormulario').textContent = '';
+    }
+
+    async function copiarTexto(texto) {
+      try {
+        await navigator.clipboard.writeText(texto);
+      } catch {
+        const temporal = document.createElement('textarea');
+        temporal.value = texto;
+        document.body.appendChild(temporal);
+        temporal.select();
+        document.execCommand('copy');
+        temporal.remove();
+      }
+      toast('Código copiado.');
+    }
+
+    // ============================================================
+    // CÓDIGOS Y CREACIÓN
+    // ============================================================
+    async function generarCodigoDisponible() {
+      for (let intento = 0; intento < 25; intento++) {
+        const codigo = generarCodigo();
+        const snapshot = await db.ref(`negocios/${codigo}`).once('value');
+        if (!snapshot.exists()) {
+          $('codigoGenerado').value = codigo;
+          return codigo;
+        }
+      }
+      throw new Error('No se pudo generar un código disponible.');
+    }
+
+    async function crearNegocio(datos) {
+      const ref = db.ref(`negocios/${datos.codigo}`);
+      const snapshot = await ref.once('value');
+      if (snapshot.exists()) throw new Error('Ese código ya existe. Genera otro.');
+
+      await ref.set({
+        nombre: datos.nombre,
+        contacto: datos.contacto || '',
+        plan: datos.plan || 'prueba',
+        vence_en: datos.vence_en || '',
+        notas: datos.notas || '',
+        activo: true,
+        caja_activa: false,
+        creado_en: firebase.database.ServerValue.TIMESTAMP,
+        actualizado_en: firebase.database.ServerValue.TIMESTAMP
+      });
+    }
+
+    // ============================================================
+    // NEGOCIOS CRUD
+    // ============================================================
+    async function cambiarEstadoServicio(codigo, activoActual) {
+      const nuevoEstado = !activoActual;
+      await db.ref(`negocios/${codigo}`).update({
+        activo: nuevoEstado,
+        actualizado_en: firebase.database.ServerValue.TIMESTAMP,
+        ultimo_cambio_estado: firebase.database.ServerValue.TIMESTAMP
+      });
+      toast(nuevoEstado ? 'Servicio activado.' : 'Servicio suspendido.');
+    }
+
+    async function liberarCaja(codigo) {
+      await db.ref(`negocios/${codigo}`).update({
+        caja_activa: false,
+        actualizado_en: firebase.database.ServerValue.TIMESTAMP
+      });
+      toast('Caja liberada.');
+    }
+
+    async function eliminarNegocio(codigo) {
+      const confirmado = window.confirm(`¿Eliminar el negocio ${codigo}?\n\nEsto elimina /negocios/${codigo}, pero NO borra sus yapeos ni transacciones históricas.`);
+      if (!confirmado) return;
+
+      const comprobacion = window.prompt(`Para confirmar, escribe exactamente el código ${codigo}`);
+      if (comprobacion !== codigo) {
+        toast('Eliminación cancelada: el código no coincide.', 'warning');
+        return;
+      }
+
+      await db.ref(`negocios/${codigo}`).remove();
+      cerrarDetalle();
+      toast('Negocio eliminado. El historial de pagos se conservó.');
+    }
+
+    async function actualizarNegocio(codigo, datos) {
+      await db.ref(`negocios/${codigo}`).update({
+        nombre: datos.nombre,
+        contacto: datos.contacto || '',
+        plan: datos.plan || 'prueba',
+        vence_en: datos.vence_en || '',
+        notas: datos.notas || '',
+        actualizado_en: firebase.database.ServerValue.TIMESTAMP
+      });
+    }
+
+    // ============================================================
+    // RENDER TABLA
+    // ============================================================
+    function actualizarContadores() {
+      const lista = Object.values(negociosActuales);
+      $('contadorNegocios').textContent = lista.length;
+      $('contadorActivos').textContent = lista.filter(x => x?.activo === true).length;
+      $('contadorSuspendidos').textContent = lista.filter(x => x?.activo !== true).length;
+      $('contadorCajas').textContent = lista.filter(x => x?.caja_activa === true).length;
+    }
+
+    function negociosFiltrados() {
+      const q = $('buscarNegocio').value.trim().toUpperCase();
+      const filtroServicio = $('filtroServicio').value;
+      const filtroCaja = $('filtroCaja').value;
+
+      return Object.entries(negociosActuales)
+        .filter(([codigo, item]) => {
+          const texto = `${codigo} ${item?.nombre ?? ''} ${item?.contacto ?? ''}`.toUpperCase();
+          if (q && !texto.includes(q)) return false;
+
+          if (filtroServicio === 'activo' && (item?.activo !== true || esVencido(item))) return false;
+          if (filtroServicio === 'suspendido' && item?.activo === true) return false;
+          if (filtroServicio === 'vencido' && !esVencido(item)) return false;
+
+          if (filtroCaja === 'activa' && item?.caja_activa !== true) return false;
+          if (filtroCaja === 'libre' && item?.caja_activa === true) return false;
+          return true;
+        })
+        .sort((a, b) => Number(b[1]?.creado_en ?? 0) - Number(a[1]?.creado_en ?? 0));
+    }
+
+    function renderNegocios() {
+      const entradas = negociosFiltrados();
+      $('contadorFiltrados').textContent = entradas.length;
+
+      if (!entradas.length) {
+        tablaNegocios.innerHTML = '<tr><td colspan="7" class="px-6 py-10 text-center text-slate-400">No hay negocios para mostrar.</td></tr>';
+        return;
+      }
+
+      tablaNegocios.innerHTML = entradas.map(([codigo, item]) => {
+        const codigoSeguro = escaparHtml(codigo);
+        const nombreSeguro = escaparHtml(item?.nombre || 'Sin nombre');
+        const contactoSeguro = escaparHtml(item?.contacto || '');
+        const planSeguro = escaparHtml(item?.plan || 'prueba');
+        const activo = item?.activo === true;
+
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="px-6 py-4">
+              <p class="font-bold text-slate-900">${nombreSeguro}</p>
+              <p class="text-xs text-slate-400 mt-0.5">${contactoSeguro || 'Sin contacto'}</p>
+            </td>
+            <td class="px-6 py-4"><code class="bg-slate-100 px-2 py-1 rounded-lg font-bold text-yape">${codigoSeguro}</code></td>
+            <td class="px-6 py-4 capitalize text-slate-600">${planSeguro}</td>
+            <td class="px-6 py-4 text-center">${badgeServicio(item)}</td>
+            <td class="px-6 py-4 text-center">${badgeCaja(item)}</td>
+            <td class="px-6 py-4 text-xs ${esVencido(item) ? 'text-amber-700 font-bold' : 'text-slate-500'}">${fechaLegible(item?.vence_en)}</td>
+            <td class="px-6 py-4">
+              <div class="flex justify-end gap-2">
+                <button type="button" data-action="detalle" data-codigo="${codigoSeguro}" class="border border-yape/20 bg-yapeLight hover:bg-purple-100 text-yape px-3 py-1.5 rounded-lg text-xs font-bold">Ver</button>
+                <button type="button" data-action="copiar" data-codigo="${codigoSeguro}" class="border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold">Copiar</button>
+                <button type="button" data-action="toggle" data-codigo="${codigoSeguro}" data-activo="${activo}" class="border px-3 py-1.5 rounded-lg text-xs font-bold ${activo ? 'border-red-200 bg-red-50 hover:bg-red-100 text-red-700' : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700'}">${activo ? 'Suspender' : 'Activar'}</button>
+              </div>
+            </td>
+          </tr>`;
+      }).join('');
+    }
+
+    // ============================================================
+    // DETALLE + YAPEOS BAJO DEMANDA
+    // ============================================================
+    function abrirDetalle(codigo) {
+      const item = negociosActuales[codigo];
+      if (!item) return;
+      codigoDetalleActual = codigo;
+
+      $('detalleTitulo').textContent = item.nombre || 'Sin nombre';
+      $('detalleCodigo').textContent = codigo;
+      $('detalleServicio').innerHTML = badgeServicio(item);
+      $('detalleCaja').innerHTML = badgeCaja(item);
+      $('detalleTotalHoy').textContent = 'Cargando...';
+      $('detalleConteoHoy').textContent = '...';
+
+      $('detalleInfo').innerHTML = `
+        <div><dt class="text-xs uppercase font-bold text-slate-400">Contacto</dt><dd class="mt-1 font-medium text-slate-800">${escaparHtml(item.contacto || '—')}</dd></div>
+        <div><dt class="text-xs uppercase font-bold text-slate-400">Plan</dt><dd class="mt-1 font-medium text-slate-800 capitalize">${escaparHtml(item.plan || 'prueba')}</dd></div>
+        <div><dt class="text-xs uppercase font-bold text-slate-400">Vencimiento</dt><dd class="mt-1 font-medium text-slate-800">${fechaLegible(item.vence_en)}</dd></div>
+        <div><dt class="text-xs uppercase font-bold text-slate-400">Creado</dt><dd class="mt-1 font-medium text-slate-800">${fechaLegible(item.creado_en)}</dd></div>
+        <div class="md:col-span-2"><dt class="text-xs uppercase font-bold text-slate-400">Notas</dt><dd class="mt-1 font-medium text-slate-800 whitespace-pre-wrap">${escaparHtml(item.notas || '—')}</dd></div>`;
+
+      const activo = item.activo === true;
+      const btnToggle = $('btnToggleServicioDetalle');
+      btnToggle.textContent = activo ? 'Suspender servicio' : 'Activar servicio';
+      btnToggle.className = `px-4 py-2 rounded-xl text-xs font-bold border transition ${activo ? 'border-red-200 bg-red-50 hover:bg-red-100 text-red-700' : 'border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700'}`;
+
+      $('modalDetalle').hidden = false;
+      document.body.classList.add('overflow-hidden');
+      cargarYapeosHoy(codigo).catch(error => mostrarErrorYapeos(error));
+    }
+
+    function cerrarDetalle() {
+      $('modalDetalle').hidden = true;
+      if ($('modalEditar').hidden) document.body.classList.remove('overflow-hidden');
+      codigoDetalleActual = null;
+    }
+
+    async function cargarYapeosHoy(codigo) {
+      $('detalleYapeos').innerHTML = '<tr><td colspan="4" class="px-5 py-8 text-center text-slate-400">Cargando yapeos...</td></tr>';
+      const fecha = hoyLocal();
+      const snapshot = await db.ref(`yapes/${codigo}/${fecha}`).once('value');
+      const pagos = [];
+
+      snapshot.forEach(child => {
+        const item = child.val() || {};
+        const valorMonto = monto(item.monto ?? item.amount ?? item.valor ?? item.montoYape);
+        pagos.push({
+          id: child.key,
+          monto: valorMonto,
+          cliente: item.cliente ?? item.nombre ?? item.remitente ?? 'Cliente',
+          tipo: item.tipo ?? 'Yape',
+          fecha: Number(item.fecha ?? item.timestamp ?? item.createdAt ?? 0)
+        });
+      });
+
+      pagos.sort((a, b) => b.fecha - a.fecha);
+      $('detalleTotalHoy').textContent = `S/ ${pagos.reduce((s, p) => s + p.monto, 0).toFixed(2)}`;
+      $('detalleConteoHoy').textContent = String(pagos.length);
+
+      if (!pagos.length) {
+        $('detalleYapeos').innerHTML = '<tr><td colspan="4" class="px-5 py-8 text-center text-slate-400">No hay yapeos registrados hoy para este código.</td></tr>';
+        return;
+      }
+
+      $('detalleYapeos').innerHTML = pagos.slice(0, 50).map(p => `
+        <tr>
+          <td class="px-5 py-3 text-slate-500">${p.fecha ? new Date(p.fecha).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}</td>
+          <td class="px-5 py-3 font-medium text-slate-800">${escaparHtml(p.cliente)}</td>
+          <td class="px-5 py-3 text-slate-600">${escaparHtml(p.tipo)}</td>
+          <td class="px-5 py-3 text-right font-black text-yape">S/ ${p.monto.toFixed(2)}</td>
+        </tr>`).join('');
+    }
+
+    function mostrarErrorYapeos(error) {
+      $('detalleTotalHoy').textContent = 'Error';
+      $('detalleConteoHoy').textContent = '—';
+      $('detalleYapeos').innerHTML = `<tr><td colspan="4" class="px-5 py-8 text-center text-red-600">No se pudieron cargar los yapeos: ${escaparHtml(error.message || error)}</td></tr>`;
+    }
+
+    // ============================================================
+    // EDITAR
+    // ============================================================
+    function abrirEditar(codigo) {
+      const item = negociosActuales[codigo];
+      if (!item) return;
+      codigoEdicionActual = codigo;
+      $('editarCodigoLabel').textContent = codigo;
+      $('editarNombre').value = item.nombre || '';
+      $('editarContacto').value = item.contacto || '';
+      $('editarPlan').value = item.plan || 'prueba';
+      $('editarVence').value = item.vence_en || '';
+      $('editarNotas').value = item.notas || '';
+      $('modalEditar').hidden = false;
+      document.body.classList.add('overflow-hidden');
+    }
+
+    function cerrarEditar() {
+      $('modalEditar').hidden = true;
+      codigoEdicionActual = null;
+      if ($('modalDetalle').hidden) document.body.classList.remove('overflow-hidden');
+    }
+
+    // ============================================================
+    // EXPORTACIÓN
+    // ============================================================
+    function descargarTexto(nombre, contenido, tipoMime) {
+      const blob = new Blob([contenido], { type: tipoMime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = nombre;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportarCsv() {
+      const filas = [['codigo','nombre','contacto','plan','vence_en','activo','caja_activa','creado_en','notas']];
+      Object.entries(negociosActuales).forEach(([codigo, item]) => {
+        filas.push([codigo, item?.nombre ?? '', item?.contacto ?? '', item?.plan ?? '', item?.vence_en ?? '', item?.activo === true, item?.caja_activa === true, item?.creado_en ?? '', item?.notas ?? '']);
+      });
+      const csv = filas.map(fila => fila.map(v => `"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');
+      descargarTexto(`negocios_${hoyLocal()}.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
+      toast('CSV exportado.');
+    }
+
+    // ============================================================
+    // LISTENER / RECARGA
+    // ============================================================
+    function conectarListenerNegocios() {
+      if (listenerNegociosActivo) return;
+      listenerNegociosActivo = true;
+      db.ref('negocios').on('value', snapshot => {
+        negociosActuales = snapshot.val() || {};
+        actualizarContadores();
+        renderNegocios();
+
+        if (codigoDetalleActual && negociosActuales[codigoDetalleActual]) {
+          const codigo = codigoDetalleActual;
+          // refresca metadatos sin volver a leer yapeos
+          const item = negociosActuales[codigo];
+          $('detalleTitulo').textContent = item.nombre || 'Sin nombre';
+          $('detalleServicio').innerHTML = badgeServicio(item);
+          $('detalleCaja').innerHTML = badgeCaja(item);
+          $('detalleInfo').innerHTML = `
+            <div><dt class="text-xs uppercase font-bold text-slate-400">Contacto</dt><dd class="mt-1 font-medium text-slate-800">${escaparHtml(item.contacto || '—')}</dd></div>
+            <div><dt class="text-xs uppercase font-bold text-slate-400">Plan</dt><dd class="mt-1 font-medium text-slate-800 capitalize">${escaparHtml(item.plan || 'prueba')}</dd></div>
+            <div><dt class="text-xs uppercase font-bold text-slate-400">Vencimiento</dt><dd class="mt-1 font-medium text-slate-800">${fechaLegible(item.vence_en)}</dd></div>
+            <div><dt class="text-xs uppercase font-bold text-slate-400">Creado</dt><dd class="mt-1 font-medium text-slate-800">${fechaLegible(item.creado_en)}</dd></div>
+            <div class="md:col-span-2"><dt class="text-xs uppercase font-bold text-slate-400">Notas</dt><dd class="mt-1 font-medium text-slate-800 whitespace-pre-wrap">${escaparHtml(item.notas || '—')}</dd></div>`;
+        }
+      }, error => {
+        tablaNegocios.innerHTML = `<tr><td colspan="7" class="px-6 py-10 text-center text-red-600">Error leyendo Firebase: ${escaparHtml(error.message)}</td></tr>`;
+        toast(`Firebase: ${error.message}`, 'error');
+      });
+    }
+
+    async function recargarNegociosUnaVez() {
+      const btn = $('btnRecargarNegocios');
+      btn.disabled = true;
+      btn.textContent = 'Actualizando...';
+      try {
+        const snapshot = await db.ref('negocios').once('value');
+        negociosActuales = snapshot.val() || {};
+        actualizarContadores();
+        renderNegocios();
+        toast('Lista actualizada.');
+      } catch (error) {
+        toast(`No se pudo actualizar: ${error.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Actualizar lista';
+      }
+    }
+
+    // ============================================================
+    // EVENTOS
+    // ============================================================
+    formCrearNegocio.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      limpiarMensajeFormulario();
+
+      const datos = {
+        nombre: $('nombreNegocio').value.trim(),
+        contacto: $('contactoNegocio').value.trim(),
+        plan: $('planNegocio').value,
+        vence_en: $('venceNegocio').value,
+        codigo: $('codigoGenerado').value.trim().toUpperCase(),
+        notas: $('notasNegocio').value.trim()
+      };
+
+      if (!datos.nombre) return mostrarMensajeFormulario('Ingresa el nombre del negocio.', 'error');
+      if (!codigoValido(datos.codigo)) return mostrarMensajeFormulario('El código generado no es válido.', 'error');
+
+      $('btnCrear').disabled = true;
+      $('btnCrear').textContent = 'Creando...';
+      try {
+        await crearNegocio(datos);
+        mostrarMensajeFormulario(`Negocio creado correctamente: ${datos.codigo}`);
+        formCrearNegocio.reset();
+        $('planNegocio').value = 'prueba';
+        $('notasNegocio').value = '';
+        await generarCodigoDisponible();
+      } catch (error) {
+        mostrarMensajeFormulario(error.message || 'No se pudo crear el negocio.', 'error');
+      } finally {
+        $('btnCrear').disabled = false;
+        $('btnCrear').textContent = 'Crear';
+      }
+    });
+
+    formEditarNegocio.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      if (!codigoEdicionActual) return;
+      const datos = {
+        nombre: $('editarNombre').value.trim(),
+        contacto: $('editarContacto').value.trim(),
+        plan: $('editarPlan').value,
+        vence_en: $('editarVence').value,
+        notas: $('editarNotas').value.trim()
+      };
+      if (!datos.nombre) return toast('El nombre es obligatorio.', 'warning');
+
+      $('btnGuardarEditar').disabled = true;
+      $('btnGuardarEditar').textContent = 'Guardando...';
+      try {
+        await actualizarNegocio(codigoEdicionActual, datos);
+        toast('Negocio actualizado.');
+        cerrarEditar();
+      } catch (error) {
+        toast(`No se pudo guardar: ${error.message}`, 'error');
+      } finally {
+        $('btnGuardarEditar').disabled = false;
+        $('btnGuardarEditar').textContent = 'Guardar cambios';
+      }
+    });
+
+    tablaNegocios.addEventListener('click', async (event) => {
+      const btn = event.target.closest('button[data-action]');
+      if (!btn) return;
+      const codigo = btn.dataset.codigo;
+      const action = btn.dataset.action;
+      try {
+        if (action === 'detalle') abrirDetalle(codigo);
+        if (action === 'copiar') await copiarTexto(codigo);
+        if (action === 'toggle') await cambiarEstadoServicio(codigo, btn.dataset.activo === 'true');
+      } catch (error) {
+        toast(error.message || 'Ocurrió un error.', 'error');
+      }
+    });
+
+    $('btnRegenerar').addEventListener('click', async () => {
+      limpiarMensajeFormulario();
+      $('btnRegenerar').disabled = true;
+      try { await generarCodigoDisponible(); }
+      catch (error) { mostrarMensajeFormulario(error.message, 'error'); }
+      finally { $('btnRegenerar').disabled = false; }
+    });
+
+    $('buscarNegocio').addEventListener('input', renderNegocios);
+    $('filtroServicio').addEventListener('change', renderNegocios);
+    $('filtroCaja').addEventListener('change', renderNegocios);
+    $('btnRecargarNegocios').addEventListener('click', recargarNegociosUnaVez);
+    $('btnExportarCsv').addEventListener('click', exportarCsv);
+
+    $('btnCerrarDetalle').addEventListener('click', cerrarDetalle);
+    $('modalDetalle').addEventListener('click', (e) => { if (e.target === $('modalDetalle')) cerrarDetalle(); });
+    $('btnCerrarEditar').addEventListener('click', cerrarEditar);
+    $('btnCancelarEditar').addEventListener('click', cerrarEditar);
+    $('modalEditar').addEventListener('click', (e) => { if (e.target === $('modalEditar')) cerrarEditar(); });
+
+    $('btnEditarDesdeDetalle').addEventListener('click', () => { if (codigoDetalleActual) abrirEditar(codigoDetalleActual); });
+    $('btnActualizarYapeos').addEventListener('click', () => { if (codigoDetalleActual) cargarYapeosHoy(codigoDetalleActual).catch(mostrarErrorYapeos); });
+    $('btnCopiarCodigoDetalle').addEventListener('click', () => { if (codigoDetalleActual) copiarTexto(codigoDetalleActual); });
+    $('btnToggleServicioDetalle').addEventListener('click', async () => {
+      if (!codigoDetalleActual) return;
+      const item = negociosActuales[codigoDetalleActual];
+      if (!item) return;
+      try { await cambiarEstadoServicio(codigoDetalleActual, item.activo === true); }
+      catch (error) { toast(error.message, 'error'); }
+    });
+    $('btnLiberarCajaDetalle').addEventListener('click', async () => {
+      if (!codigoDetalleActual) return;
+      try { await liberarCaja(codigoDetalleActual); }
+      catch (error) { toast(error.message, 'error'); }
+    });
+    $('btnEliminarDetalle').addEventListener('click', async () => {
+      if (!codigoDetalleActual) return;
+      try { await eliminarNegocio(codigoDetalleActual); }
+      catch (error) { toast(error.message, 'error'); }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      if (!$('modalEditar').hidden) cerrarEditar();
+      else if (!$('modalDetalle').hidden) cerrarDetalle();
+    });
+
+    // Conexión Firebase
+    db.ref('.info/connected').on('value', snapshot => {
+      const conectado = snapshot.val() === true;
+      $('estadoConexion').innerHTML = conectado
+        ? '<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>Firebase conectado</span>'
+        : '<span class="w-2 h-2 rounded-full bg-red-400"></span><span>Sin conexión</span>';
+    });
+
+    // Inicio
+    conectarListenerNegocios();
+    generarCodigoDisponible().catch(error => mostrarMensajeFormulario(error.message, 'error'));
+  </script>
+</body>
+</html>
