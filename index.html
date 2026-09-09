@@ -538,6 +538,14 @@
         let firebaseConectado = false;
         let erroresLecturaFirebase = new Map();
 
+        // Estado administrado desde la web maestra.
+        // La web del negocio solo escucha yapeos cuando /negocios/{codigo}/activo === true.
+        let estadoNegocio = codigoUnicoActual ? 'verificando' : 'sin_codigo';
+        let nombreNegocioActual = '';
+        let referenciaEstadoNegocio = null;
+        let callbackEstadoNegocio = null;
+        let callbackErrorEstadoNegocio = null;
+
         let datosSemana = JSON.parse(localStorage.getItem('datosSemana')) || {
             'Lun': { yape: 0, efectivo: 0, total: 0, cerrado: false },
             'Mar': { yape: 0, efectivo: 0, total: 0, cerrado: false },
@@ -566,26 +574,98 @@
                 estadoDiv.className = "flex items-center gap-2 bg-red-900/60 text-red-300 px-3 py-1.5 rounded-xl text-xs font-bold";
                 indicador.className = "w-2 h-2 rounded-full bg-red-400";
                 mensaje.textContent = "Sin conexión a Firebase";
+            } else if (!codigoFirebaseValido(codigoUnicoActual)) {
+                estadoDiv.className = "flex items-center gap-2 bg-amber-900/60 text-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold";
+                indicador.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+                mensaje.textContent = "Firebase conectado · Ingresa el código de caja";
+            } else if (estadoNegocio === 'verificando') {
+                estadoDiv.className = "flex items-center gap-2 bg-amber-900/60 text-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold";
+                indicador.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+                mensaje.textContent = `Verificando ${codigoUnicoActual}...`;
+            } else if (estadoNegocio === 'inexistente') {
+                estadoDiv.className = "flex items-center gap-2 bg-red-900/60 text-red-300 px-3 py-1.5 rounded-xl text-xs font-bold";
+                indicador.className = "w-2 h-2 rounded-full bg-red-400";
+                mensaje.textContent = `Código no registrado: ${codigoUnicoActual}`;
+            } else if (estadoNegocio === 'suspendido') {
+                estadoDiv.className = "flex items-center gap-2 bg-red-900/60 text-red-300 px-3 py-1.5 rounded-xl text-xs font-bold";
+                indicador.className = "w-2 h-2 rounded-full bg-red-400";
+                mensaje.textContent = `Servicio suspendido · ${codigoUnicoActual}`;
+            } else if (estadoNegocio === 'error') {
+                estadoDiv.className = "flex items-center gap-2 bg-red-900/60 text-red-300 px-3 py-1.5 rounded-xl text-xs font-bold";
+                indicador.className = "w-2 h-2 rounded-full bg-red-400";
+                mensaje.textContent = "No se pudo validar el negocio";
             } else if (erroresLecturaFirebase.size > 0) {
                 estadoDiv.className = "flex items-center gap-2 bg-red-900/60 text-red-300 px-3 py-1.5 rounded-xl text-xs font-bold";
                 indicador.className = "w-2 h-2 rounded-full bg-red-400";
                 const detalleError = [...erroresLecturaFirebase.entries()]
                     .map(([origen, error]) => `${origen}: ${error}`)
                     .join(' · ');
-                mensaje.textContent = `Firebase conectado · Error de lectura (${detalleError})`;
-            } else if (!codigoFirebaseValido(codigoUnicoActual)) {
-                estadoDiv.className = "flex items-center gap-2 bg-amber-900/60 text-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold";
-                indicador.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
-                mensaje.textContent = "Firebase conectado · Ingresa el código de caja";
+                mensaje.textContent = `Error de lectura (${detalleError})`;
             } else {
                 estadoDiv.className = "flex items-center gap-2 bg-emerald-900/60 text-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold";
                 indicador.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
-                // Esto confirma la conexión al servidor y el tenant que estamos escuchando.
-                // No pretende afirmar que el nodo tenga pagos almacenados.
-                mensaje.textContent = `Firebase conectado · Caja: ${codigoUnicoActual}`;
+                mensaje.textContent = nombreNegocioActual
+                    ? `${nombreNegocioActual} · ${codigoUnicoActual}`
+                    : `Firebase conectado · Caja: ${codigoUnicoActual}`;
             }
 
             estadoDiv.replaceChildren(indicador, mensaje);
+        }
+
+        function obtenerOverlayServicio() {
+            let overlay = document.getElementById('servicioBloqueadoOverlay');
+            if (overlay) return overlay;
+
+            overlay = document.createElement('div');
+            overlay.id = 'servicioBloqueadoOverlay';
+            overlay.className = 'fixed inset-0 z-[100] hidden bg-slate-950/70 backdrop-blur-sm p-4 items-center justify-center';
+            overlay.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 text-center border border-slate-200">
+                    <div class="w-14 h-14 mx-auto rounded-full bg-red-100 text-red-600 flex items-center justify-center text-2xl">⛔</div>
+                    <h2 id="bloqueoTitulo" class="text-xl font-black text-slate-900 mt-4">Servicio desactivado</h2>
+                    <p id="bloqueoMensaje" class="text-sm text-slate-500 mt-2 leading-relaxed"></p>
+                    <div class="mt-6 flex flex-col sm:flex-row gap-2">
+                        <button id="btnReintentarServicio" type="button" class="flex-1 bg-yape hover:bg-yapeDark text-white rounded-xl px-4 py-2.5 text-sm font-bold">Reintentar</button>
+                        <button id="btnCambiarCodigo" type="button" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl px-4 py-2.5 text-sm font-bold">Cambiar código</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+
+            overlay.querySelector('#btnReintentarServicio').addEventListener('click', () => {
+                if (codigoFirebaseValido(codigoUnicoActual)) {
+                    sincronizarConFirebase(codigoUnicoActual, dateInput.value);
+                }
+            });
+
+            overlay.querySelector('#btnCambiarCodigo').addEventListener('click', () => {
+                detenerSincronizacionCompleta();
+                localStorage.removeItem('codigoUnico');
+                codigoUnicoActual = '';
+                codigoInput.value = '';
+                estadoNegocio = 'sin_codigo';
+                nombreNegocioActual = '';
+                ocultarBloqueoServicio();
+                actualizarEstadoConexion();
+                document.getElementById('estadoSincronizacionYape').innerText = 'Ingresa un código de negocio activo.';
+                codigoInput.focus();
+            });
+
+            return overlay;
+        }
+
+        function mostrarBloqueoServicio(titulo, mensaje) {
+            const overlay = obtenerOverlayServicio();
+            overlay.querySelector('#bloqueoTitulo').textContent = titulo;
+            overlay.querySelector('#bloqueoMensaje').textContent = mensaje;
+            overlay.classList.remove('hidden');
+            overlay.classList.add('flex');
+        }
+
+        function ocultarBloqueoServicio() {
+            const overlay = document.getElementById('servicioBloqueadoOverlay');
+            if (!overlay) return;
+            overlay.classList.add('hidden');
+            overlay.classList.remove('flex');
         }
 
         db.ref(".info/connected").on("value", (snap) => {
@@ -614,7 +694,7 @@
         });
 
         function actualizarTenant() {
-            const nuevoCodigo = codigoInput.value.trim();
+            const nuevoCodigo = codigoInput.value.trim().toUpperCase();
 
             if (!nuevoCodigo) {
                 alert('Ingresa el código de caja configurado en la aplicación Android.');
@@ -790,33 +870,130 @@
             listenersFirebaseActivos.push({ referencia, callback });
         }
 
-        function sincronizarConFirebase(tenant, fecha) {
+        function detenerListenersPagos() {
             listenersFirebaseActivos.forEach(({ referencia, callback }) => referencia.off('value', callback));
             listenersFirebaseActivos = [];
             pagosPorOrigen = { yapes: [], pagos: [] };
             origenesFirebaseCargados = new Set();
             registrosYapeConocidos = 0;
-            totalYapeAppReal = 0;
             erroresLecturaFirebase.clear();
+        }
 
-            if (!codigoFirebaseValido(tenant)) {
-                document.getElementById('estadoSincronizacionYape').innerText = 'Ingresa un código de caja válido.';
-                actualizarInterfazDia();
-                actualizarEstadoConexion();
-                return;
+        function detenerListenerEstadoNegocio() {
+            if (referenciaEstadoNegocio && callbackEstadoNegocio) {
+                referenciaEstadoNegocio.off('value', callbackEstadoNegocio);
             }
+            referenciaEstadoNegocio = null;
+            callbackEstadoNegocio = null;
+            callbackErrorEstadoNegocio = null;
+        }
 
-            document.getElementById('estadoSincronizacionYape').innerText = `Sincronizando ${tenant} · ${fecha}...`;
+        function detenerSincronizacionCompleta() {
+            detenerListenersPagos();
+            detenerListenerEstadoNegocio();
+            totalYapeAppReal = 0;
             actualizarInterfazDia();
-            actualizarEstadoConexion();
+        }
+
+        function iniciarListenersPagosSiCorresponde(tenant, fecha) {
+            if (estadoNegocio !== 'activo') return;
+            if (tenant !== codigoUnicoActual) return;
+            if (listenersFirebaseActivos.length > 0) return;
+
+            primeraCarga = true;
+            document.getElementById('estadoSincronizacionYape').innerText = `Sincronizando ${tenant} · ${fecha}...`;
 
             // Ruta actual escrita por YapeNotificationService.
             escucharRutaPagos(`yapes/${tenant}/${fecha}`, 'yapes', tenant, fecha);
 
             // Compatibilidad con instalaciones antiguas que todavía escribían en /pagos.
-            // Si ya no usas ninguna versión antigua de Android, puedes retirar esta escucha
-            // para reducir todavía más las lecturas de Realtime Database.
+            // Puedes eliminar esta línea cuando ya no exista ninguna app antigua.
             escucharRutaPagos('pagos', 'pagos', tenant, fecha);
+        }
+
+        function escucharEstadoNegocio(tenant, fecha) {
+            detenerListenerEstadoNegocio();
+            referenciaEstadoNegocio = db.ref(`negocios/${tenant}`);
+
+            callbackEstadoNegocio = (snapshot) => {
+                if (tenant !== codigoUnicoActual) return;
+
+                if (!snapshot.exists()) {
+                    estadoNegocio = 'inexistente';
+                    nombreNegocioActual = '';
+                    detenerListenersPagos();
+                    totalYapeAppReal = 0;
+                    document.getElementById('estadoSincronizacionYape').innerText = 'Código no registrado en la web maestra.';
+                    actualizarInterfazDia();
+                    actualizarEstadoConexion();
+                    mostrarBloqueoServicio(
+                        'Código no registrado',
+                        `El código ${tenant} no existe en el panel maestro. Verifica el código o solicita uno al administrador.`
+                    );
+                    return;
+                }
+
+                const negocio = snapshot.val() || {};
+                nombreNegocioActual = String(negocio.nombre || '').trim();
+
+                if (negocio.activo !== true) {
+                    estadoNegocio = 'suspendido';
+                    detenerListenersPagos();
+                    totalYapeAppReal = 0;
+                    document.getElementById('estadoSincronizacionYape').innerText = 'Servicio suspendido por el administrador.';
+                    actualizarInterfazDia();
+                    actualizarEstadoConexion();
+                    mostrarBloqueoServicio(
+                        'Servicio suspendido',
+                        `${nombreNegocioActual || tenant} está desactivado desde el panel maestro. No se recibirán ni contabilizarán nuevos yapeos en esta web mientras permanezca suspendido.`
+                    );
+                    return;
+                }
+
+                const seAcabaDeActivar = estadoNegocio !== 'activo';
+                estadoNegocio = 'activo';
+                ocultarBloqueoServicio();
+                actualizarEstadoConexion();
+
+                if (seAcabaDeActivar || listenersFirebaseActivos.length === 0) {
+                    iniciarListenersPagosSiCorresponde(tenant, fecha);
+                }
+            };
+
+            callbackErrorEstadoNegocio = (error) => {
+                if (tenant !== codigoUnicoActual) return;
+                estadoNegocio = 'error';
+                detenerListenersPagos();
+                totalYapeAppReal = 0;
+                document.getElementById('estadoSincronizacionYape').innerText = 'No se pudo validar el estado del negocio.';
+                actualizarInterfazDia();
+                actualizarEstadoConexion();
+                mostrarBloqueoServicio(
+                    'No se pudo validar el servicio',
+                    `Firebase devolvió un error al consultar el negocio: ${error?.message || error?.code || 'error desconocido'}.`
+                );
+            };
+
+            referenciaEstadoNegocio.on('value', callbackEstadoNegocio, callbackErrorEstadoNegocio);
+        }
+
+        function sincronizarConFirebase(tenant, fecha) {
+            detenerSincronizacionCompleta();
+
+            if (!codigoFirebaseValido(tenant)) {
+                estadoNegocio = 'sin_codigo';
+                nombreNegocioActual = '';
+                document.getElementById('estadoSincronizacionYape').innerText = 'Ingresa un código de caja válido.';
+                ocultarBloqueoServicio();
+                actualizarEstadoConexion();
+                return;
+            }
+
+            estadoNegocio = 'verificando';
+            nombreNegocioActual = '';
+            document.getElementById('estadoSincronizacionYape').innerText = `Verificando ${tenant}...`;
+            actualizarEstadoConexion();
+            escucharEstadoNegocio(tenant, fecha);
         }
 
         document.getElementById('formCierreEmpleado').addEventListener('submit', function(e) {
