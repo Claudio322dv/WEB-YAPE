@@ -523,7 +523,9 @@
         const fechaLocal = new Date(hoy.getTime() - offset).toISOString().split('T')[0];
         dateInput.value = fechaLocal;
 
-        let codigoUnicoActual = localStorage.getItem('codigoUnico') || 'DEFAULT';
+        // No usamos un tenant ficticio como "DEFAULT". La web solo escucha
+        // Firebase cuando existe un código de caja real configurado por el usuario.
+        let codigoUnicoActual = (localStorage.getItem('codigoUnico') || '').trim();
         codigoInput.value = codigoUnicoActual;
 
         let totalYapeAppReal = 0.00;
@@ -534,6 +536,7 @@
         let primeraCarga = true;
         let sonidoActivado = localStorage.getItem('sonidoNotificacion') !== 'OFF';
         let firebaseConectado = false;
+        let erroresLecturaFirebase = new Map();
 
         let datosSemana = JSON.parse(localStorage.getItem('datosSemana')) || {
             'Lun': { yape: 0, efectivo: 0, total: 0, cerrado: false },
@@ -549,19 +552,37 @@
 
         actualizarBotonSonido();
 
+        function codigoFirebaseValido(codigo) {
+            // Realtime Database no admite estos caracteres dentro de una clave/ruta.
+            return codigo.length > 0 && !/[.#$\[\]\/]/.test(codigo);
+        }
+
         function actualizarEstadoConexion() {
             const estadoDiv = document.getElementById('estadoConexion');
             const indicador = document.createElement('span');
             const mensaje = document.createElement('span');
 
-            if (firebaseConectado) {
-                estadoDiv.className = "flex items-center gap-2 bg-emerald-900/60 text-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold";
-                indicador.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
-                mensaje.textContent = `Conectado: ${codigoUnicoActual}`;
-            } else {
+            if (!firebaseConectado) {
                 estadoDiv.className = "flex items-center gap-2 bg-red-900/60 text-red-300 px-3 py-1.5 rounded-xl text-xs font-bold";
                 indicador.className = "w-2 h-2 rounded-full bg-red-400";
-                mensaje.textContent = "Sin conexión";
+                mensaje.textContent = "Sin conexión a Firebase";
+            } else if (erroresLecturaFirebase.size > 0) {
+                estadoDiv.className = "flex items-center gap-2 bg-red-900/60 text-red-300 px-3 py-1.5 rounded-xl text-xs font-bold";
+                indicador.className = "w-2 h-2 rounded-full bg-red-400";
+                const detalleError = [...erroresLecturaFirebase.entries()]
+                    .map(([origen, error]) => `${origen}: ${error}`)
+                    .join(' · ');
+                mensaje.textContent = `Firebase conectado · Error de lectura (${detalleError})`;
+            } else if (!codigoFirebaseValido(codigoUnicoActual)) {
+                estadoDiv.className = "flex items-center gap-2 bg-amber-900/60 text-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold";
+                indicador.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+                mensaje.textContent = "Firebase conectado · Ingresa el código de caja";
+            } else {
+                estadoDiv.className = "flex items-center gap-2 bg-emerald-900/60 text-emerald-300 px-3 py-1.5 rounded-xl text-xs font-bold";
+                indicador.className = "w-2 h-2 rounded-full bg-emerald-400 animate-pulse";
+                // Esto confirma la conexión al servidor y el tenant que estamos escuchando.
+                // No pretende afirmar que el nodo tenga pagos almacenados.
+                mensaje.textContent = `Firebase conectado · Caja: ${codigoUnicoActual}`;
             }
 
             estadoDiv.replaceChildren(indicador, mensaje);
@@ -572,24 +593,56 @@
             actualizarEstadoConexion();
         });
 
-        sincronizarConFirebase(codigoUnicoActual, dateInput.value);
+        if (codigoFirebaseValido(codigoUnicoActual)) {
+            sincronizarConFirebase(codigoUnicoActual, dateInput.value);
+        } else {
+            totalYapeAppReal = 0;
+            document.getElementById('estadoSincronizacionYape').innerText = 'Ingresa el código asignado en Android para sincronizar.';
+            actualizarInterfazDia();
+            actualizarEstadoConexion();
+        }
         renderTablaSemanal();
 
         dateInput.addEventListener('change', function() {
             primeraCarga = true;
-            sincronizarConFirebase(codigoUnicoActual, this.value);
+            if (codigoFirebaseValido(codigoUnicoActual)) {
+                sincronizarConFirebase(codigoUnicoActual, this.value);
+            } else {
+                totalYapeAppReal = 0;
+                actualizarInterfazDia();
+            }
         });
 
         function actualizarTenant() {
             const nuevoCodigo = codigoInput.value.trim();
-            if (nuevoCodigo) {
-                codigoUnicoActual = nuevoCodigo;
-                localStorage.setItem('codigoUnico', nuevoCodigo);
-                primeraCarga = true;
-                sincronizarConFirebase(codigoUnicoActual, dateInput.value);
-                actualizarEstadoConexion();
+
+            if (!nuevoCodigo) {
+                alert('Ingresa el código de caja configurado en la aplicación Android.');
+                codigoInput.focus();
+                return;
             }
+
+            if (!codigoFirebaseValido(nuevoCodigo)) {
+                alert('El código no es válido para Firebase. No puede contener . # $ [ ] /');
+                codigoInput.focus();
+                return;
+            }
+
+            codigoUnicoActual = nuevoCodigo;
+            codigoInput.value = nuevoCodigo;
+            localStorage.setItem('codigoUnico', nuevoCodigo);
+            primeraCarga = true;
+            erroresLecturaFirebase.clear();
+            sincronizarConFirebase(codigoUnicoActual, dateInput.value);
+            actualizarEstadoConexion();
         }
+
+        codigoInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                actualizarTenant();
+            }
+        });
 
         // SONIDO DE NOTIFICACIÓN
         function toggleSonido() {
@@ -720,10 +773,20 @@
                 });
                 pagosPorOrigen[origen] = pagos;
                 origenesFirebaseCargados.add(origen);
+                erroresLecturaFirebase.delete(origen);
+                actualizarEstadoConexion();
                 consolidarPagos();
             };
 
-            referencia.on('value', callback);
+            const callbackError = (error) => {
+                console.error(`Error leyendo ${ruta}:`, error);
+                erroresLecturaFirebase.set(origen, error?.code || error?.message || 'PERMISSION_DENIED');
+                origenesFirebaseCargados.add(origen);
+                actualizarEstadoConexion();
+                consolidarPagos();
+            };
+
+            referencia.on('value', callback, callbackError);
             listenersFirebaseActivos.push({ referencia, callback });
         }
 
@@ -733,9 +796,26 @@
             pagosPorOrigen = { yapes: [], pagos: [] };
             origenesFirebaseCargados = new Set();
             registrosYapeConocidos = 0;
+            totalYapeAppReal = 0;
+            erroresLecturaFirebase.clear();
 
-            // Ruta actual y ruta heredada usada por las primeras versiones móviles.
+            if (!codigoFirebaseValido(tenant)) {
+                document.getElementById('estadoSincronizacionYape').innerText = 'Ingresa un código de caja válido.';
+                actualizarInterfazDia();
+                actualizarEstadoConexion();
+                return;
+            }
+
+            document.getElementById('estadoSincronizacionYape').innerText = `Sincronizando ${tenant} · ${fecha}...`;
+            actualizarInterfazDia();
+            actualizarEstadoConexion();
+
+            // Ruta actual escrita por YapeNotificationService.
             escucharRutaPagos(`yapes/${tenant}/${fecha}`, 'yapes', tenant, fecha);
+
+            // Compatibilidad con instalaciones antiguas que todavía escribían en /pagos.
+            // Si ya no usas ninguna versión antigua de Android, puedes retirar esta escucha
+            // para reducir todavía más las lecturas de Realtime Database.
             escucharRutaPagos('pagos', 'pagos', tenant, fecha);
         }
 
