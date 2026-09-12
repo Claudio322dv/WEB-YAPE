@@ -77,21 +77,56 @@
 
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
 
-            <!-- CONFIGURACIÓN DE TIENDA -->
-            <section class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div class="flex items-center gap-3">
-                    <span class="text-2xl">🏪</span>
-                    <div>
-                        <h3 class="text-sm font-bold text-slate-900">Identificador de Caja (Multitenant)</h3>
-                        <p class="text-xs text-slate-500">Ingresa el código único asignado en la aplicación Android</p>
+            <!-- ACCESO DEL NEGOCIO -->
+            <section class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <span class="text-2xl">🏪</span>
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900">Acceso del negocio</h3>
+                            <p class="text-xs text-slate-500">Usa el código general del negocio y el PIN del propietario.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-[1fr_160px_auto_auto] gap-2 w-full lg:w-auto">
+                        <input type="text" id="codigoUnicoInput" placeholder="Ej: YP-8K4M2Q"
+                            class="bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl px-3 py-2 font-bold focus:outline-none focus:ring-2 focus:ring-yape sm:w-56">
+                        <input type="password" id="pinPropietarioInput" placeholder="PIN"
+                            inputmode="numeric" maxlength="8"
+                            class="bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl px-3 py-2 font-bold focus:outline-none focus:ring-2 focus:ring-yape">
+                        <button id="btnConectarNegocio" onclick="actualizarTenant()" class="bg-yape hover:bg-yapeDark text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow">
+                            Conectar
+                        </button>
+                        <button id="btnCerrarSesionWeb" onclick="cerrarSesionWeb()" class="hidden bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-4 py-2 rounded-xl transition">
+                            Salir
+                        </button>
                     </div>
                 </div>
-                <div class="flex items-center gap-2 w-full sm:w-auto">
-                    <input type="text" id="codigoUnicoInput" placeholder="Ej: CAJA-LOCAL-01" 
-                        class="bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl px-3 py-2 font-bold focus:outline-none focus:ring-2 focus:ring-yape w-full sm:w-64">
-                    <button onclick="actualizarTenant()" class="bg-yape hover:bg-yapeDark text-white text-xs font-bold px-4 py-2 rounded-xl transition shadow">
-                        Conectar
-                    </button>
+
+                <div id="panelDatosNegocio" class="hidden grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-slate-100">
+                    <div class="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                        <p class="text-[10px] uppercase font-bold text-slate-400">Negocio</p>
+                        <p id="datoNombreNegocio" class="font-bold text-slate-900 mt-1">--</p>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                        <p class="text-[10px] uppercase font-bold text-slate-400">Plan</p>
+                        <p id="datoPlanNegocio" class="font-bold text-yape mt-1">--</p>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                        <p class="text-[10px] uppercase font-bold text-slate-400">Vencimiento</p>
+                        <p id="datoVencimientoNegocio" class="font-bold text-slate-900 mt-1">--</p>
+                    </div>
+                    <div class="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                        <p class="text-[10px] uppercase font-bold text-slate-400">Historial</p>
+                        <select id="selectRetencion" onchange="actualizarRetencionHistorial()"
+                            class="mt-1 w-full bg-white border border-slate-300 text-xs rounded-lg px-2 py-1.5 font-bold focus:outline-none focus:ring-2 focus:ring-yape">
+                            <option value="30">1 mes</option>
+                            <option value="90">3 meses</option>
+                            <option value="180">6 meses</option>
+                            <option value="365">12 meses</option>
+                            <option value="0">Conservar siempre</option>
+                        </select>
+                    </div>
                 </div>
             </section>
 
@@ -150,7 +185,11 @@
                                 <p class="text-xs text-slate-400">Selecciona la fecha para auditar o guardar el avance</p>
                             </div>
                             
-                            <div class="flex items-center gap-2">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <button type="button" onclick="seleccionarHoy()"
+                                    class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl transition">Hoy</button>
+                                <button type="button" onclick="seleccionarAyer()"
+                                    class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-xl transition">Ayer</button>
                                 <input type="date" id="selectFecha" 
                                     class="bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-xl px-3 py-2 font-bold focus:outline-none focus:ring-2 focus:ring-yape">
                                 <button onclick="abrirModalCierre()" class="bg-yape hover:bg-yapeDark text-white text-xs font-bold px-3 py-2 rounded-xl transition shadow flex items-center gap-1">
@@ -198,6 +237,45 @@
 
             </div>
 
+            <!-- GESTIÓN DE EMPLEADOS -->
+            <section id="seccionEmpleados" class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-5">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                            <span>👥</span> Empleados por código
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-1">El empleado usa el código del negocio + su código EMP-XXXXXX para ingresar en Android.</p>
+                    </div>
+                    <span id="contadorEmpleados" class="text-xs font-bold text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full">0 empleados</span>
+                </div>
+
+                <form id="formNuevoEmpleado" class="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3 items-end">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Nombre del empleado</label>
+                        <input type="text" id="nombreNuevoEmpleado" placeholder="Ej: Carlos Mendoza" required maxlength="60"
+                            class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yape">
+                    </div>
+                    <button type="submit"
+                        class="bg-yape hover:bg-yapeDark text-white font-bold py-2 px-5 rounded-xl shadow transition">
+                        + Crear empleado
+                    </button>
+                </form>
+
+                <div class="overflow-x-auto border-t border-slate-100 pt-4">
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold tracking-wider">
+                                <th class="px-4 py-3">Código</th>
+                                <th class="px-4 py-3">Nombre</th>
+                                <th class="px-4 py-3">Estado</th>
+                                <th class="px-4 py-3 text-right">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tablaEmpleadosBody" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </section>
+
             <!-- FORMULARIO E HISTORIAL DEL DÍA SELECCIONADO -->
             <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-6">
                 <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
@@ -206,9 +284,11 @@
 
                 <form id="formCierreEmpleado" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
-                        <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Empleado / Turno</label>
-                        <input type="text" id="nombreEmpleado" placeholder="Ej: Carlos Mendoza" required
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Empleado / Código</label>
+                        <select id="empleadoRendicion" required
                             class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yape">
+                            <option value="">Selecciona un empleado activo</option>
+                        </select>
                     </div>
 
                     <div>
@@ -235,6 +315,7 @@
                     <table class="w-full text-left text-sm border-collapse">
                         <thead>
                             <tr class="bg-slate-50 text-slate-500 uppercase text-[11px] font-bold tracking-wider">
+                                <th class="px-4 py-3">Código</th>
                                 <th class="px-4 py-3">Empleado</th>
                                 <th class="px-4 py-3">Yape Declarado</th>
                                 <th class="px-4 py-3">Efectivo Rendido</th>
@@ -246,6 +327,21 @@
                             <!-- Items dinámicos -->
                         </tbody>
                     </table>
+                </div>
+            </section>
+
+            <!-- SESIONES / DISPOSITIVOS -->
+            <section class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <span>📱</span> Sesiones y dispositivos
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-1">Se irán mostrando aquí los dispositivos registrados por Android. Podrás cerrar una sesión específica sin afectar las demás.</p>
+                </div>
+                <div id="listaSesiones" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                    <div class="text-sm text-slate-400 bg-slate-50 rounded-xl border border-slate-200 p-4">
+                        Aún no hay sesiones registradas.
+                    </div>
                 </div>
             </section>
 
@@ -517,6 +613,7 @@
 
         const dateInput = document.getElementById('selectFecha');
         const codigoInput = document.getElementById('codigoUnicoInput');
+        const pinInput = document.getElementById('pinPropietarioInput');
 
         const hoy = new Date();
         const offset = hoy.getTimezoneOffset() * 60000;
@@ -527,6 +624,10 @@
         // Firebase cuando existe un código de caja real configurado por el usuario.
         let codigoUnicoActual = (localStorage.getItem('codigoUnico') || '').trim();
         codigoInput.value = codigoUnicoActual;
+
+        let propietarioVerificado =
+            sessionStorage.getItem('propietarioVerificado') === codigoUnicoActual &&
+            codigoFirebaseValido(codigoUnicoActual);
 
         let totalYapeAppReal = 0.00;
         let listenersFirebaseActivos = [];
@@ -545,6 +646,15 @@
         let referenciaEstadoNegocio = null;
         let callbackEstadoNegocio = null;
         let callbackErrorEstadoNegocio = null;
+
+        let referenciaEmpleados = null;
+        let callbackEmpleados = null;
+        let referenciaRendiciones = null;
+        let callbackRendiciones = null;
+        let referenciaSesiones = null;
+        let callbackSesiones = null;
+        let empleadosActuales = {};
+        let empleadoActivoOptions = [];
 
         let datosSemana = JSON.parse(localStorage.getItem('datosSemana')) || {
             'Lun': { yape: 0, efectivo: 0, total: 0, cerrado: false },
@@ -565,6 +675,141 @@
             return codigo.length > 0 && !/[.#$\[\]\/]/.test(codigo);
         }
 
+        async function generarHashPin(codigo, pin) {
+            const datos = new TextEncoder().encode(`${codigo}:${pin}`);
+            const hash = await crypto.subtle.digest('SHA-256', datos);
+            return Array.from(new Uint8Array(hash))
+                .map(byte => byte.toString(16).padStart(2, '0'))
+                .join('');
+        }
+
+        function fechaISODesdeDate(fecha) {
+            const offsetLocal = fecha.getTimezoneOffset() * 60000;
+            return new Date(fecha.getTime() - offsetLocal).toISOString().split('T')[0];
+        }
+
+        function seleccionarHoy() {
+            dateInput.value = fechaLocal;
+            dateInput.dispatchEvent(new Event('change'));
+        }
+
+        function seleccionarAyer() {
+            const ayer = new Date();
+            ayer.setDate(ayer.getDate() - 1);
+            dateInput.value = fechaISODesdeDate(ayer);
+            dateInput.dispatchEvent(new Event('change'));
+        }
+
+        function obtenerInicioSemana(fechaISO) {
+            const fecha = new Date(`${fechaISO}T00:00:00`);
+            const dia = fecha.getDay();
+            const diferencia = dia === 0 ? -6 : 1 - dia;
+            fecha.setDate(fecha.getDate() + diferencia);
+            return fechaISODesdeDate(fecha);
+        }
+
+        async function cargarSemanaDesdeFirebase(fechaBase) {
+            if (!propietarioVerificado || !codigoFirebaseValido(codigoUnicoActual)) return;
+
+            const semanaId = obtenerInicioSemana(fechaBase);
+
+            try {
+                const snapshot = await db.ref(`semanas/${codigoUnicoActual}/${semanaId}`).once('value');
+                const remoto = snapshot.val() || {};
+
+                const base = {
+                    'Lun': { yape: 0, efectivo: 0, total: 0, cerrado: false },
+                    'Mar': { yape: 0, efectivo: 0, total: 0, cerrado: false },
+                    'Mié': { yape: 0, efectivo: 0, total: 0, cerrado: false },
+                    'Jue': { yape: 0, efectivo: 0, total: 0, cerrado: false },
+                    'Vie': { yape: 0, efectivo: 0, total: 0, cerrado: false },
+                    'Sáb': { yape: 0, efectivo: 0, total: 0, cerrado: false },
+                    'Dom': { yape: 0, efectivo: 0, total: 0, cerrado: false }
+                };
+
+                Object.keys(base).forEach((dia) => {
+                    if (remoto[dia]) {
+                        base[dia] = {
+                            yape: Number(remoto[dia].yape || 0),
+                            efectivo: Number(remoto[dia].efectivo || 0),
+                            total: Number(remoto[dia].total || 0),
+                            cerrado: remoto[dia].cerrado === true,
+                            fechaCompleta: remoto[dia].fechaCompleta || ''
+                        };
+                    }
+                });
+
+                datosSemana = base;
+                guardarLocalStorage();
+                renderTablaSemanal();
+            } catch (error) {
+                console.error('No se pudo cargar la semana:', error);
+            }
+        }
+
+        function actualizarControlesSesionWeb() {
+            document.getElementById('btnCerrarSesionWeb').classList.toggle('hidden', !propietarioVerificado);
+            document.getElementById('btnConectarNegocio').classList.toggle('hidden', propietarioVerificado);
+            codigoInput.disabled = propietarioVerificado;
+            pinInput.disabled = propietarioVerificado;
+            if (propietarioVerificado) pinInput.value = '';
+        }
+
+        function formatearVencimiento(valor) {
+            if (!valor) return 'Sin fecha';
+            if (typeof valor === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(valor)) {
+                const [y, m, d] = valor.split('-');
+                return `${d}/${m}/${y}`;
+            }
+            const fecha = new Date(valor);
+            return Number.isNaN(fecha.getTime()) ? String(valor) : fecha.toLocaleDateString('es-PE');
+        }
+
+        function actualizarPanelNegocio(negocio) {
+            document.getElementById('panelDatosNegocio').classList.remove('hidden');
+            document.getElementById('datoNombreNegocio').textContent =
+                String(negocio.nombre || codigoUnicoActual);
+
+            const plan = String(
+                negocio.suscripcion?.plan ||
+                negocio.plan ||
+                'FREE'
+            ).toUpperCase();
+
+            const venceEn =
+                negocio.suscripcion?.vence_en ??
+                negocio.vence_en ??
+                null;
+
+            document.getElementById('datoPlanNegocio').textContent = plan;
+            document.getElementById('datoVencimientoNegocio').textContent =
+                formatearVencimiento(venceEn);
+
+            const diasRetencion = Number(
+                negocio.configuracion?.retencion_historial_dias ?? 180
+            );
+
+            const selectRetencion = document.getElementById('selectRetencion');
+            const valorRetencion = [0, 30, 90, 180, 365].includes(diasRetencion)
+                ? String(diasRetencion)
+                : '180';
+            selectRetencion.value = valorRetencion;
+        }
+
+        async function actualizarRetencionHistorial() {
+            if (!propietarioVerificado || !codigoFirebaseValido(codigoUnicoActual)) return;
+            const dias = Number(document.getElementById('selectRetencion').value);
+            try {
+                await db.ref(`negocios/${codigoUnicoActual}/configuracion`).update({
+                    retencion_historial_dias: dias,
+                    actualizado_en: firebase.database.ServerValue.TIMESTAMP
+                });
+            } catch (error) {
+                console.error('No se pudo actualizar retención:', error);
+                alert('No se pudo guardar la configuración de historial.');
+            }
+        }
+
         function actualizarEstadoConexion() {
             const estadoDiv = document.getElementById('estadoConexion');
             const indicador = document.createElement('span');
@@ -577,7 +822,11 @@
             } else if (!codigoFirebaseValido(codigoUnicoActual)) {
                 estadoDiv.className = "flex items-center gap-2 bg-amber-900/60 text-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold";
                 indicador.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
-                mensaje.textContent = "Firebase conectado · Ingresa el código de caja";
+                mensaje.textContent = "Firebase conectado · Ingresa el código del negocio";
+            } else if (!propietarioVerificado) {
+                estadoDiv.className = "flex items-center gap-2 bg-amber-900/60 text-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold";
+                indicador.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
+                mensaje.textContent = "Ingresa el PIN del propietario";
             } else if (estadoNegocio === 'verificando') {
                 estadoDiv.className = "flex items-center gap-2 bg-amber-900/60 text-amber-300 px-3 py-1.5 rounded-xl text-xs font-bold";
                 indicador.className = "w-2 h-2 rounded-full bg-amber-400 animate-pulse";
@@ -638,16 +887,7 @@
             });
 
             overlay.querySelector('#btnCambiarCodigo').addEventListener('click', () => {
-                detenerSincronizacionCompleta();
-                localStorage.removeItem('codigoUnico');
-                codigoUnicoActual = '';
-                codigoInput.value = '';
-                estadoNegocio = 'sin_codigo';
-                nombreNegocioActual = '';
-                ocultarBloqueoServicio();
-                actualizarEstadoConexion();
-                document.getElementById('estadoSincronizacionYape').innerText = 'Ingresa un código de negocio activo.';
-                codigoInput.focus();
+                cerrarSesionWeb();
             });
 
             return overlay;
@@ -673,11 +913,17 @@
             actualizarEstadoConexion();
         });
 
-        if (codigoFirebaseValido(codigoUnicoActual)) {
+        actualizarControlesSesionWeb();
+
+        if (codigoFirebaseValido(codigoUnicoActual) && propietarioVerificado) {
             sincronizarConFirebase(codigoUnicoActual, dateInput.value);
         } else {
             totalYapeAppReal = 0;
-            document.getElementById('estadoSincronizacionYape').innerText = 'Ingresa el código asignado en Android para sincronizar.';
+            estadoNegocio = codigoFirebaseValido(codigoUnicoActual) ? 'sin_codigo' : 'sin_codigo';
+            document.getElementById('estadoSincronizacionYape').innerText =
+                codigoFirebaseValido(codigoUnicoActual)
+                    ? 'Ingresa el PIN del propietario para continuar.'
+                    : 'Ingresa el código del negocio y PIN del propietario.';
             actualizarInterfazDia();
             actualizarEstadoConexion();
         }
@@ -693,11 +939,12 @@
             }
         });
 
-        function actualizarTenant() {
+        async function actualizarTenant() {
             const nuevoCodigo = codigoInput.value.trim().toUpperCase();
+            const pin = pinInput.value.trim();
 
             if (!nuevoCodigo) {
-                alert('Ingresa el código de caja configurado en la aplicación Android.');
+                alert('Ingresa el código del negocio.');
                 codigoInput.focus();
                 return;
             }
@@ -708,16 +955,117 @@
                 return;
             }
 
-            codigoUnicoActual = nuevoCodigo;
-            codigoInput.value = nuevoCodigo;
-            localStorage.setItem('codigoUnico', nuevoCodigo);
-            primeraCarga = true;
-            erroresLecturaFirebase.clear();
-            sincronizarConFirebase(codigoUnicoActual, dateInput.value);
+            if (!pin) {
+                alert('Ingresa el PIN del propietario.');
+                pinInput.focus();
+                return;
+            }
+
+            const boton = document.getElementById('btnConectarNegocio');
+            boton.disabled = true;
+            boton.textContent = 'Verificando...';
+
+            try {
+                const snapshot = await db.ref(`negocios/${nuevoCodigo}`).once('value');
+
+                if (!snapshot.exists()) {
+                    alert('El código del negocio no existe.');
+                    return;
+                }
+
+                const negocio = snapshot.val() || {};
+
+                if (negocio.activo !== true) {
+                    alert('Este negocio se encuentra suspendido.');
+                    return;
+                }
+
+                const propietario = negocio.propietario || {};
+
+                if (propietario.activo !== true) {
+                    alert('El acceso del propietario está desactivado.');
+                    return;
+                }
+
+                const hashIngresado = await generarHashPin(nuevoCodigo, pin);
+                const hashGuardado = String(propietario.pin_hash || '');
+
+                if (!hashGuardado || hashIngresado !== hashGuardado) {
+                    alert('PIN incorrecto.');
+                    pinInput.select();
+                    return;
+                }
+
+                codigoUnicoActual = nuevoCodigo;
+                codigoInput.value = nuevoCodigo;
+                localStorage.setItem('codigoUnico', nuevoCodigo);
+                sessionStorage.setItem('propietarioVerificado', nuevoCodigo);
+                propietarioVerificado = true;
+                primeraCarga = true;
+                erroresLecturaFirebase.clear();
+                actualizarControlesSesionWeb();
+                sincronizarConFirebase(codigoUnicoActual, dateInput.value);
+                actualizarEstadoConexion();
+
+                if (propietario.requiere_cambio_pin === true) {
+                    alert('Este PIN es temporal. Cámbialo primero desde la app Android.');
+                }
+
+            } catch (error) {
+                console.error('Error verificando propietario:', error);
+                alert('No se pudo verificar el acceso. Revisa la conexión.');
+            } finally {
+                boton.disabled = false;
+                boton.textContent = 'Conectar';
+            }
+        }
+
+        function cerrarSesionWeb() {
+            detenerSincronizacionCompleta();
+            sessionStorage.removeItem('propietarioVerificado');
+            localStorage.removeItem('codigoUnico');
+            propietarioVerificado = false;
+            codigoUnicoActual = '';
+            codigoInput.value = '';
+            pinInput.value = '';
+            estadoNegocio = 'sin_codigo';
+            nombreNegocioActual = '';
+            empleadosActuales = {};
+            empleadoActivoOptions = [];
+            registrosPorFecha = {};
+            totalYapeAppReal = 0;
+            datosSemana = {
+                'Lun': { yape: 0, efectivo: 0, total: 0, cerrado: false },
+                'Mar': { yape: 0, efectivo: 0, total: 0, cerrado: false },
+                'Mié': { yape: 0, efectivo: 0, total: 0, cerrado: false },
+                'Jue': { yape: 0, efectivo: 0, total: 0, cerrado: false },
+                'Vie': { yape: 0, efectivo: 0, total: 0, cerrado: false },
+                'Sáb': { yape: 0, efectivo: 0, total: 0, cerrado: false },
+                'Dom': { yape: 0, efectivo: 0, total: 0, cerrado: false }
+            };
+            renderTablaSemanal();
+            actualizarInterfazDia();
+            document.getElementById('panelDatosNegocio').classList.add('hidden');
+            document.getElementById('tablaEmpleadosBody').innerHTML = '';
+            document.getElementById('listaSesiones').innerHTML =
+                '<div class="text-sm text-slate-400 bg-slate-50 rounded-xl border border-slate-200 p-4">Aún no hay sesiones registradas.</div>';
+            rellenarSelectEmpleados();
+            ocultarBloqueoServicio();
+            actualizarControlesSesionWeb();
             actualizarEstadoConexion();
+            document.getElementById('estadoSincronizacionYape').innerText =
+                'Ingresa el código del negocio y PIN del propietario.';
+            codigoInput.focus();
         }
 
         codigoInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                pinInput.focus();
+            }
+        });
+
+        pinInput.addEventListener('keydown', function(event) {
             if (event.key === 'Enter') {
                 event.preventDefault();
                 actualizarTenant();
@@ -888,11 +1236,312 @@
             callbackErrorEstadoNegocio = null;
         }
 
+        function detenerListenersNegocioExtra() {
+            if (referenciaEmpleados && callbackEmpleados) {
+                referenciaEmpleados.off('value', callbackEmpleados);
+            }
+            if (referenciaRendiciones && callbackRendiciones) {
+                referenciaRendiciones.off('value', callbackRendiciones);
+            }
+            if (referenciaSesiones && callbackSesiones) {
+                referenciaSesiones.off('value', callbackSesiones);
+            }
+
+            referenciaEmpleados = null;
+            callbackEmpleados = null;
+            referenciaRendiciones = null;
+            callbackRendiciones = null;
+            referenciaSesiones = null;
+            callbackSesiones = null;
+        }
+
         function detenerSincronizacionCompleta() {
             detenerListenersPagos();
             detenerListenerEstadoNegocio();
+            detenerListenersNegocioExtra();
             totalYapeAppReal = 0;
             actualizarInterfazDia();
+        }
+
+        function generarCodigoEmpleado() {
+            const caracteres = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let codigo = 'EMP-';
+            for (let i = 0; i < 6; i++) {
+                codigo += caracteres[Math.floor(Math.random() * caracteres.length)];
+            }
+            return codigo;
+        }
+
+        function rellenarSelectEmpleados() {
+            const select = document.getElementById('empleadoRendicion');
+            if (!select) return;
+
+            select.innerHTML = '<option value="">Selecciona un empleado activo</option>';
+
+            empleadoActivoOptions
+                .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+                .forEach((empleado) => {
+                    const option = document.createElement('option');
+                    option.value = empleado.codigo;
+                    option.textContent = `${empleado.nombre} · ${empleado.codigo}`;
+                    select.appendChild(option);
+                });
+        }
+
+        function renderEmpleados() {
+            const tbody = document.getElementById('tablaEmpleadosBody');
+            tbody.innerHTML = '';
+
+            const empleados = Object.entries(empleadosActuales)
+                .map(([codigo, data]) => ({
+                    codigo,
+                    nombre: String(data?.nombre || 'Sin nombre'),
+                    activo: data?.activo === true
+                }))
+                .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+            empleadoActivoOptions = empleados.filter(e => e.activo);
+            rellenarSelectEmpleados();
+
+            const contador = empleados.length;
+            document.getElementById('contadorEmpleados').textContent =
+                contador === 1 ? '1 empleado' : `${contador} empleados`;
+
+            if (!empleados.length) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="px-4 py-6 text-center text-slate-400">
+                            Aún no hay empleados registrados.
+                        </td>
+                    </tr>`;
+                return;
+            }
+
+            empleados.forEach((empleado) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition';
+                tr.innerHTML = `
+                    <td class="px-4 py-3 font-black text-yape"></td>
+                    <td class="px-4 py-3 font-bold text-slate-900"></td>
+                    <td class="px-4 py-3"></td>
+                    <td class="px-4 py-3 text-right"></td>
+                `;
+
+                tr.children[0].textContent = empleado.codigo;
+                tr.children[1].textContent = empleado.nombre;
+
+                const estado = document.createElement('span');
+                estado.className = empleado.activo
+                    ? 'bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full text-[10px] font-bold'
+                    : 'bg-slate-100 text-slate-500 px-2 py-1 rounded-full text-[10px] font-bold';
+                estado.textContent = empleado.activo ? 'ACTIVO' : 'INACTIVO';
+                tr.children[2].appendChild(estado);
+
+                const boton = document.createElement('button');
+                boton.type = 'button';
+                boton.className = empleado.activo
+                    ? 'text-red-600 hover:text-red-800 text-xs font-bold'
+                    : 'text-emerald-600 hover:text-emerald-800 text-xs font-bold';
+                boton.textContent = empleado.activo ? 'Desactivar' : 'Activar';
+                boton.addEventListener('click', () => cambiarEstadoEmpleado(empleado.codigo, !empleado.activo));
+                tr.children[3].appendChild(boton);
+
+                tbody.appendChild(tr);
+            });
+        }
+
+        function escucharEmpleados(tenant) {
+            referenciaEmpleados = db.ref(`negocios/${tenant}/empleados`);
+
+            callbackEmpleados = (snapshot) => {
+                if (tenant !== codigoUnicoActual) return;
+                empleadosActuales = snapshot.val() || {};
+                renderEmpleados();
+            };
+
+            referenciaEmpleados.on('value', callbackEmpleados, (error) => {
+                console.error('Error leyendo empleados:', error);
+            });
+        }
+
+        async function cambiarEstadoEmpleado(codigoEmpleado, activo) {
+            if (!propietarioVerificado || !codigoFirebaseValido(codigoUnicoActual)) return;
+
+            try {
+                await db.ref(`negocios/${codigoUnicoActual}/empleados/${codigoEmpleado}`).update({
+                    activo,
+                    actualizado_en: firebase.database.ServerValue.TIMESTAMP
+                });
+            } catch (error) {
+                console.error('No se pudo actualizar empleado:', error);
+                alert('No se pudo actualizar el empleado.');
+            }
+        }
+
+        document.getElementById('formNuevoEmpleado').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            if (!propietarioVerificado || !codigoFirebaseValido(codigoUnicoActual)) {
+                alert('Primero inicia sesión como propietario.');
+                return;
+            }
+
+            const nombre = document.getElementById('nombreNuevoEmpleado').value.trim();
+            if (!nombre) return;
+
+            let codigoEmpleado = generarCodigoEmpleado();
+
+            try {
+                for (let intento = 0; intento < 5; intento++) {
+                    const existe = await db
+                        .ref(`negocios/${codigoUnicoActual}/empleados/${codigoEmpleado}`)
+                        .once('value');
+
+                    if (!existe.exists()) break;
+                    codigoEmpleado = generarCodigoEmpleado();
+                }
+
+                await db.ref(`negocios/${codigoUnicoActual}/empleados/${codigoEmpleado}`).set({
+                    nombre,
+                    rol: 'CAJERO',
+                    activo: true,
+                    creado_en: firebase.database.ServerValue.TIMESTAMP,
+                    actualizado_en: firebase.database.ServerValue.TIMESTAMP
+                });
+
+                document.getElementById('nombreNuevoEmpleado').value = '';
+
+                try {
+                    await navigator.clipboard.writeText(
+                        `Código negocio: ${codigoUnicoActual}\nCódigo empleado: ${codigoEmpleado}`
+                    );
+                } catch (_) {}
+
+                alert(
+                    `Empleado creado.\n\nCódigo negocio: ${codigoUnicoActual}\nCódigo empleado: ${codigoEmpleado}`
+                );
+            } catch (error) {
+                console.error('No se pudo crear empleado:', error);
+                alert('No se pudo crear el empleado.');
+            }
+        });
+
+        function escucharRendiciones(tenant, fecha) {
+            referenciaRendiciones = db.ref(`cierres/${tenant}/${fecha}/rendiciones`);
+
+            callbackRendiciones = (snapshot) => {
+                if (tenant !== codigoUnicoActual || fecha !== dateInput.value) return;
+
+                const registros = [];
+                snapshot.forEach((child) => {
+                    const item = child.val() || {};
+                    registros.push({
+                        _id: child.key,
+                        codigo_empleado: String(item.codigo_empleado || ''),
+                        nombre: String(item.nombre || 'Empleado'),
+                        yape: Number(item.yape || 0),
+                        efectivo: Number(item.efectivo || 0),
+                        total: Number(item.total || 0)
+                    });
+                });
+
+                registrosPorFecha[fecha] = registros;
+                actualizarInterfazDia();
+            };
+
+            referenciaRendiciones.on('value', callbackRendiciones, (error) => {
+                console.error('Error leyendo rendiciones:', error);
+            });
+        }
+
+        function renderSesiones(sesiones) {
+            const contenedor = document.getElementById('listaSesiones');
+            contenedor.innerHTML = '';
+
+            const items = Object.entries(sesiones || {});
+
+            if (!items.length) {
+                contenedor.innerHTML = `
+                    <div class="text-sm text-slate-400 bg-slate-50 rounded-xl border border-slate-200 p-4">
+                        Aún no hay sesiones registradas.
+                    </div>`;
+                return;
+            }
+
+            items.forEach(([id, sesion]) => {
+                const activo = sesion?.activo === true;
+                const tipo = String(sesion?.tipo_usuario || 'USUARIO');
+                const codigoEmpleado = String(sesion?.codigo_empleado || '');
+                const dispositivo = String(sesion?.dispositivo || id);
+
+                const card = document.createElement('div');
+                card.className = 'rounded-xl border border-slate-200 p-4 bg-slate-50 space-y-2';
+
+                const titulo = document.createElement('div');
+                titulo.className = 'flex items-center justify-between gap-2';
+
+                const nombre = document.createElement('strong');
+                nombre.className = 'text-sm text-slate-900';
+                nombre.textContent = dispositivo;
+
+                const badge = document.createElement('span');
+                badge.className = activo
+                    ? 'text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700'
+                    : 'text-[10px] font-bold px-2 py-1 rounded-full bg-slate-200 text-slate-500';
+                badge.textContent = activo ? 'ACTIVA' : 'CERRADA';
+
+                titulo.append(nombre, badge);
+
+                const detalle = document.createElement('p');
+                detalle.className = 'text-xs text-slate-500';
+                detalle.textContent = codigoEmpleado ? `${tipo} · ${codigoEmpleado}` : tipo;
+
+                card.append(titulo, detalle);
+
+                if (activo) {
+                    const boton = document.createElement('button');
+                    boton.type = 'button';
+                    boton.className = 'text-xs font-bold text-red-600 hover:text-red-800';
+                    boton.textContent = 'Cerrar esta sesión';
+                    boton.addEventListener('click', () => cerrarSesionRemota(id));
+                    card.appendChild(boton);
+                }
+
+                contenedor.appendChild(card);
+            });
+        }
+
+        function escucharSesiones(tenant) {
+            referenciaSesiones = db.ref(`negocios/${tenant}/sesiones`);
+
+            callbackSesiones = (snapshot) => {
+                if (tenant !== codigoUnicoActual) return;
+                renderSesiones(snapshot.val() || {});
+            };
+
+            referenciaSesiones.on('value', callbackSesiones, (error) => {
+                console.error('Error leyendo sesiones:', error);
+            });
+        }
+
+        async function cerrarSesionRemota(idSesion) {
+            if (!propietarioVerificado) return;
+
+            try {
+                await db.ref(`negocios/${codigoUnicoActual}/sesiones/${idSesion}`).update({
+                    activo: false,
+                    cerrado_en: firebase.database.ServerValue.TIMESTAMP
+                });
+            } catch (error) {
+                console.error('No se pudo cerrar sesión:', error);
+                alert('No se pudo cerrar la sesión remota.');
+            }
+        }
+
+        function iniciarListenersNegocioExtra(tenant, fecha) {
+            escucharEmpleados(tenant);
+            escucharRendiciones(tenant, fecha);
+            escucharSesiones(tenant);
         }
 
         function iniciarListenersPagosSiCorresponde(tenant, fecha) {
@@ -953,10 +1602,13 @@
                 const seAcabaDeActivar = estadoNegocio !== 'activo';
                 estadoNegocio = 'activo';
                 ocultarBloqueoServicio();
+                actualizarPanelNegocio(negocio);
                 actualizarEstadoConexion();
 
                 if (seAcabaDeActivar || listenersFirebaseActivos.length === 0) {
                     iniciarListenersPagosSiCorresponde(tenant, fecha);
+                    iniciarListenersNegocioExtra(tenant, fecha);
+                    cargarSemanaDesdeFirebase(fecha);
                 }
             };
 
@@ -996,19 +1648,46 @@
             escucharEstadoNegocio(tenant, fecha);
         }
 
-        document.getElementById('formCierreEmpleado').addEventListener('submit', function(e) {
+        document.getElementById('formCierreEmpleado').addEventListener('submit', async function(e) {
             e.preventDefault();
+
+            if (!propietarioVerificado || !codigoFirebaseValido(codigoUnicoActual)) {
+                alert('Primero inicia sesión como propietario.');
+                return;
+            }
+
             const fechaActual = dateInput.value;
-            const nombre = document.getElementById('nombreEmpleado').value;
+            const codigoEmpleado = document.getElementById('empleadoRendicion').value;
+            const empleado = empleadosActuales[codigoEmpleado] || null;
+
+            if (!codigoEmpleado || !empleado || empleado.activo !== true) {
+                alert('Selecciona un empleado activo.');
+                return;
+            }
+
+            const nombre = String(empleado.nombre || 'Empleado');
             const yape = parseFloat(document.getElementById('montoYape').value) || 0;
             const efectivo = parseFloat(document.getElementById('montoEfectivo').value) || 0;
             const total = yape + efectivo;
 
-            if (!registrosPorFecha[fechaActual]) registrosPorFecha[fechaActual] = [];
-            registrosPorFecha[fechaActual].push({ nombre, yape, efectivo, total });
-            guardarLocalStorage();
-            actualizarInterfazDia();
-            this.reset();
+            try {
+                const ref = db.ref(`cierres/${codigoUnicoActual}/${fechaActual}/rendiciones`).push();
+                await ref.set({
+                    codigo_empleado: codigoEmpleado,
+                    nombre,
+                    yape,
+                    efectivo,
+                    total,
+                    creado_en: firebase.database.ServerValue.TIMESTAMP
+                });
+
+                document.getElementById('montoYape').value = '';
+                document.getElementById('montoEfectivo').value = '';
+                document.getElementById('empleadoRendicion').value = '';
+            } catch (error) {
+                console.error('No se pudo guardar la rendición:', error);
+                alert('No se pudo guardar la rendición.');
+            }
         });
 
         function actualizarInterfazDia() {
@@ -1027,6 +1706,7 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition";
                 tr.innerHTML = `
+                    <td class="px-4 py-3 font-black text-yape"></td>
                     <td class="px-4 py-3 font-bold text-slate-900"></td>
                     <td class="px-4 py-3 text-yape font-semibold">S/ ${item.yape.toFixed(2)}</td>
                     <td class="px-4 py-3 text-emerald-600 font-semibold">S/ ${item.efectivo.toFixed(2)}</td>
@@ -1035,7 +1715,8 @@
                         <button onclick="eliminarRegistro(${index})" class="text-red-500 hover:text-red-700 text-xs font-bold">Eliminar</button>
                     </td>
                 `;
-                tr.children[0].textContent = item.nombre;
+                tr.children[0].textContent = item.codigo_empleado || '--';
+                tr.children[1].textContent = item.nombre;
                 tbody.appendChild(tr);
             });
 
@@ -1123,7 +1804,12 @@
             }
         }
 
-        function ejecutarCierreDia() {
+        async function ejecutarCierreDia() {
+            if (!propietarioVerificado || !codigoFirebaseValido(codigoUnicoActual)) {
+                alert('Primero inicia sesión como propietario.');
+                return;
+            }
+
             const fecha = new Date(dateInput.value + 'T00:00:00');
             const diasNombre = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
             const nombreDia = diasNombre[fecha.getDay()];
@@ -1133,17 +1819,39 @@
             registrosHoy.forEach(r => sumEfectivo += r.efectivo);
 
             if (datosSemana[nombreDia]) {
-                datosSemana[nombreDia] = {
+                const resumen = {
                     yape: totalYapeAppReal,
                     efectivo: sumEfectivo,
                     total: totalYapeAppReal + sumEfectivo,
                     cerrado: true,
-                    fechaCompleta: dateInput.value
+                    fechaCompleta: dateInput.value,
+                    cerrado_en: firebase.database.ServerValue.TIMESTAMP
                 };
-                guardarLocalStorage();
-                renderTablaSemanal();
-                cerrarModalCierre();
-                generarPDF(dateInput.value);
+
+                const semanaId = obtenerInicioSemana(dateInput.value);
+
+                try {
+                    const updates = {};
+                    updates[`cierres/${codigoUnicoActual}/${dateInput.value}/resumen`] = resumen;
+                    updates[`semanas/${codigoUnicoActual}/${semanaId}/${nombreDia}`] = resumen;
+                    await db.ref().update(updates);
+
+                    datosSemana[nombreDia] = {
+                        yape: resumen.yape,
+                        efectivo: resumen.efectivo,
+                        total: resumen.total,
+                        cerrado: true,
+                        fechaCompleta: dateInput.value
+                    };
+
+                    guardarLocalStorage();
+                    renderTablaSemanal();
+                    cerrarModalCierre();
+                    generarPDF(dateInput.value);
+                } catch (error) {
+                    console.error('No se pudo cerrar el día:', error);
+                    alert('No se pudo guardar el cierre del día.');
+                }
             }
         }
 
@@ -1189,18 +1897,27 @@
             }
         }
 
-        function ejecutarReiniciodeSemana() {
-            // Generar el PDF global semanal antes de reiniciar
+        async function ejecutarReiniciodeSemana() {
+            // Generar el PDF global semanal antes de reiniciar.
+            // Los cierres diarios permanecen en /cierres.
             generarPDFSemanal();
 
-            // Limpiar datos
-            Object.keys(datosSemana).forEach(d => {
-                datosSemana[d] = { yape: 0, efectivo: 0, total: 0, cerrado: false };
-            });
+            const semanaId = obtenerInicioSemana(dateInput.value);
 
-            guardarLocalStorage();
-            renderTablaSemanal();
-            cerrarModalReiniciarSemana();
+            try {
+                await db.ref(`semanas/${codigoUnicoActual}/${semanaId}`).remove();
+
+                Object.keys(datosSemana).forEach(d => {
+                    datosSemana[d] = { yape: 0, efectivo: 0, total: 0, cerrado: false };
+                });
+
+                guardarLocalStorage();
+                renderTablaSemanal();
+                cerrarModalReiniciarSemana();
+            } catch (error) {
+                console.error('No se pudo reiniciar la semana:', error);
+                alert('No se pudo reiniciar el consolidado semanal.');
+            }
         }
 
         // ==========================================
@@ -1347,13 +2064,28 @@
             document.getElementById('semTotal').innerText = `S/ ${totalSem.toFixed(2)}`;
         }
 
-        function eliminarRegistro(idx) {
+        async function eliminarRegistro(idx) {
             const fechaActual = dateInput.value;
-            if (registrosPorFecha[fechaActual]) {
-                registrosPorFecha[fechaActual].splice(idx, 1);
-                guardarLocalStorage();
-                actualizarInterfazDia();
+            const registros = registrosPorFecha[fechaActual] || [];
+            const item = registros[idx];
+
+            if (!item) return;
+
+            if (item._id && propietarioVerificado && codigoFirebaseValido(codigoUnicoActual)) {
+                try {
+                    await db.ref(`cierres/${codigoUnicoActual}/${fechaActual}/rendiciones/${item._id}`).remove();
+                    return;
+                } catch (error) {
+                    console.error('No se pudo eliminar la rendición:', error);
+                    alert('No se pudo eliminar la rendición.');
+                    return;
+                }
             }
+
+            registros.splice(idx, 1);
+            registrosPorFecha[fechaActual] = registros;
+            guardarLocalStorage();
+            actualizarInterfazDia();
         }
 
         function guardarLocalStorage() {
