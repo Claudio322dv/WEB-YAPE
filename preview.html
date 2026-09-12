@@ -42,7 +42,6 @@
       </div>
 
       <div class="flex items-center gap-2 flex-wrap">
-        <span id="modoBadge" class="inline-flex items-center bg-amber-100 text-amber-900 border border-amber-200 px-3 py-1.5 rounded-xl text-xs font-bold">Modo de prueba</span>
         <div id="estadoConexion" class="inline-flex items-center gap-2 bg-yapeDark px-3 py-1.5 rounded-xl text-xs font-bold" aria-live="polite">
           <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
           <span>Conectando...</span>
@@ -71,8 +70,8 @@
       </article>
 
       <article class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <p class="text-[11px] sm:text-xs uppercase font-bold text-slate-400">Cajas activas</p>
-        <p id="contadorCajas" class="text-3xl font-black text-yape mt-2">0</p>
+        <p class="text-[11px] sm:text-xs uppercase font-bold text-slate-400">Sesiones activas</p>
+        <p id="contadorSesiones" class="text-3xl font-black text-yape mt-2">0</p>
       </article>
     </section>
 
@@ -161,7 +160,7 @@
         <div class="flex flex-col lg:flex-row gap-4 lg:items-center lg:justify-between">
           <div>
             <h2 class="text-lg font-black text-slate-900">Negocios registrados</h2>
-            <p class="text-sm text-slate-500 mt-1">Administra cada código sin cargar los yapeos de todos los negocios.</p>
+            <p class="text-sm text-slate-500 mt-1">Administra cada negocio, sus sesiones y sus yapeos sin cargar historiales innecesarios.</p>
           </div>
           <button id="btnRecargarNegocios" type="button" class="self-start bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition">Actualizar lista</button>
         </div>
@@ -176,10 +175,10 @@
             <option value="vencido">Vencidos</option>
           </select>
 
-          <select id="filtroCaja" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yape">
-            <option value="todas">Todas las cajas</option>
-            <option value="activa">Caja activa</option>
-            <option value="libre">Caja libre</option>
+          <select id="filtroSesion" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yape">
+            <option value="todas">Todas las sesiones</option>
+            <option value="activa">Con sesión activa</option>
+            <option value="libre">Sin sesión activa</option>
           </select>
         </div>
       </div>
@@ -192,7 +191,7 @@
               <th class="text-left px-6 py-3">Código</th>
               <th class="text-left px-6 py-3">Plan</th>
               <th class="text-center px-6 py-3">Servicio</th>
-              <th class="text-center px-6 py-3">Caja</th>
+              <th class="text-center px-6 py-3">Sesiones</th>
               <th class="text-left px-6 py-3">Vence</th>
               <th class="text-right px-6 py-3">Acciones</th>
             </tr>
@@ -212,8 +211,8 @@
     <section class="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-sm text-amber-900">
       <p class="font-black">Integración con Android</p>
       <p class="mt-1 leading-relaxed">
-        Este panel escribe el estado en <strong>negocios/{codigo}/activo</strong> y <strong>negocios/{codigo}/caja_activa</strong>.
-        Para que una app que ya está abierta se detenga inmediatamente al suspender un negocio, Android debe escuchar el campo <strong>activo</strong> en tiempo real.
+        Este panel controla <strong>negocios/{codigo}/activo</strong> y las sesiones individuales en <strong>negocios/{codigo}/sesiones/{deviceId}</strong>.
+        Cada dispositivo mantiene su propia sesión, por lo que puedes cerrar un celular sin afectar a los demás.
       </p>
     </section>
 
@@ -237,8 +236,8 @@
             <div id="detalleServicio" class="mt-2"></div>
           </div>
           <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
-            <p class="text-[11px] uppercase font-bold text-slate-400">Caja</p>
-            <div id="detalleCaja" class="mt-2"></div>
+            <p class="text-[11px] uppercase font-bold text-slate-400">Sesiones</p>
+            <div id="detalleSesiones" class="mt-2"></div>
           </div>
           <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
             <p class="text-[11px] uppercase font-bold text-slate-400">Yape hoy</p>
@@ -277,9 +276,25 @@
           </div>
         </section>
 
+        <section class="border border-slate-200 rounded-2xl overflow-hidden">
+          <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+            <div>
+              <h4 class="font-black text-slate-900">Sesiones / dispositivos</h4>
+              <p class="text-xs text-slate-400 mt-1">Dispositivos registrados por Android para este negocio.</p>
+            </div>
+            <button id="btnActualizarSesiones" type="button" class="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition">Actualizar sesiones</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[800px] text-sm">
+              <thead><tr class="bg-slate-50 text-[11px] uppercase text-slate-400"><th class="text-left px-5 py-3">Dispositivo</th><th class="text-left px-5 py-3">Usuario</th><th class="text-left px-5 py-3">Último acceso</th><th class="text-center px-5 py-3">Estado</th><th class="text-right px-5 py-3">Acción</th></tr></thead>
+              <tbody id="detalleTablaSesiones" class="divide-y divide-slate-100"><tr><td colspan="5" class="px-5 py-8 text-center text-slate-400">Sin sesiones registradas.</td></tr></tbody>
+            </table>
+          </div>
+        </section>
+
         <section class="flex flex-wrap gap-3 pt-2 border-t border-slate-100">
           <button id="btnToggleServicioDetalle" type="button" class="px-4 py-2 rounded-xl text-xs font-bold border transition">Cambiar servicio</button>
-          <button id="btnLiberarCajaDetalle" type="button" class="px-4 py-2 rounded-xl text-xs font-bold border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 transition">Liberar caja</button>
+          <button id="btnCerrarSesionesDetalle" type="button" class="px-4 py-2 rounded-xl text-xs font-bold border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-800 transition">Cerrar todas las sesiones</button>
           <button id="btnCopiarCodigoDetalle" type="button" class="px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition">Copiar código</button>
           <button id="btnResetPinDetalle" type="button" class="px-4 py-2 rounded-xl text-xs font-bold border border-purple-200 bg-purple-50 hover:bg-purple-100 text-yape transition">Restablecer PIN dueño</button>
           <button id="btnEliminarDetalle" type="button" class="ml-auto px-4 py-2 rounded-xl text-xs font-bold border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 transition">Eliminar negocio</button>
@@ -419,10 +434,16 @@
       return '<span class="inline-flex bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full text-xs font-bold">Activo</span>';
     }
 
-    function badgeCaja(item) {
-      return item?.caja_activa === true
-        ? '<span class="inline-flex bg-yapeLight text-yape px-2.5 py-1 rounded-full text-xs font-bold">Activa</span>'
-        : '<span class="inline-flex bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full text-xs font-bold">Libre</span>';
+    function sesionesActivas(item) {
+      const sesiones = item?.sesiones || {};
+      return Object.values(sesiones).filter(sesion => sesion?.activo === true).length;
+    }
+
+    function badgeSesiones(item) {
+      const cantidad = sesionesActivas(item);
+      return cantidad > 0
+        ? `<span class="inline-flex bg-yapeLight text-yape px-2.5 py-1 rounded-full text-xs font-bold">${cantidad} activa${cantidad === 1 ? '' : 's'}</span>`
+        : '<span class="inline-flex bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full text-xs font-bold">Sin sesiones</span>';
     }
 
     function toast(mensaje, tipo = 'ok') {
@@ -494,9 +515,6 @@
         notas: datos.notas || '',
         activo: true,
 
-        // Se conserva temporalmente por compatibilidad con la app actual.
-        caja_activa: false,
-
         propietario: {
           pin_hash: pinHash,
           requiere_cambio_pin: true,
@@ -534,12 +552,39 @@
       toast(nuevoEstado ? 'Servicio activado.' : 'Servicio suspendido.');
     }
 
-    async function liberarCaja(codigo) {
-      await db.ref(`negocios/${codigo}`).update({
-        caja_activa: false,
-        actualizado_en: firebase.database.ServerValue.TIMESTAMP
+    async function cerrarTodasSesiones(codigo) {
+      const snapshot = await db.ref(`negocios/${codigo}/sesiones`).once('value');
+      if (!snapshot.exists()) {
+        toast('No hay sesiones registradas.', 'warning');
+        return;
+      }
+
+      const cambios = {};
+      let cantidad = 0;
+      snapshot.forEach(child => {
+        const sesion = child.val() || {};
+        if (sesion.activo === true) {
+          cambios[`${child.key}/activo`] = false;
+          cambios[`${child.key}/cerrado_en`] = firebase.database.ServerValue.TIMESTAMP;
+          cantidad++;
+        }
       });
-      toast('Caja liberada.');
+
+      if (!cantidad) {
+        toast('No hay sesiones activas.', 'warning');
+        return;
+      }
+
+      await db.ref(`negocios/${codigo}/sesiones`).update(cambios);
+      toast(`${cantidad} sesión(es) cerrada(s).`);
+    }
+
+    async function cerrarSesionDispositivo(codigo, deviceId) {
+      await db.ref(`negocios/${codigo}/sesiones/${deviceId}`).update({
+        activo: false,
+        cerrado_en: firebase.database.ServerValue.TIMESTAMP
+      });
+      toast('Sesión cerrada.');
     }
 
     async function eliminarNegocio(codigo) {
@@ -596,13 +641,13 @@
       $('contadorNegocios').textContent = lista.length;
       $('contadorActivos').textContent = lista.filter(x => x?.activo === true).length;
       $('contadorSuspendidos').textContent = lista.filter(x => x?.activo !== true).length;
-      $('contadorCajas').textContent = lista.filter(x => x?.caja_activa === true).length;
+      $('contadorSesiones').textContent = lista.reduce((total, item) => total + sesionesActivas(item), 0);
     }
 
     function negociosFiltrados() {
       const q = $('buscarNegocio').value.trim().toUpperCase();
       const filtroServicio = $('filtroServicio').value;
-      const filtroCaja = $('filtroCaja').value;
+      const filtroSesion = $('filtroSesion').value;
 
       return Object.entries(negociosActuales)
         .filter(([codigo, item]) => {
@@ -613,8 +658,9 @@
           if (filtroServicio === 'suspendido' && item?.activo === true) return false;
           if (filtroServicio === 'vencido' && !esVencido(item)) return false;
 
-          if (filtroCaja === 'activa' && item?.caja_activa !== true) return false;
-          if (filtroCaja === 'libre' && item?.caja_activa === true) return false;
+          const activas = sesionesActivas(item);
+          if (filtroSesion === 'activa' && activas === 0) return false;
+          if (filtroSesion === 'libre' && activas > 0) return false;
           return true;
         })
         .sort((a, b) => Number(b[1]?.creado_en ?? 0) - Number(a[1]?.creado_en ?? 0));
@@ -645,7 +691,7 @@
             <td class="px-6 py-4"><code class="bg-slate-100 px-2 py-1 rounded-lg font-bold text-yape">${codigoSeguro}</code></td>
             <td class="px-6 py-4 capitalize text-slate-600">${planSeguro}</td>
             <td class="px-6 py-4 text-center">${badgeServicio(item)}</td>
-            <td class="px-6 py-4 text-center">${badgeCaja(item)}</td>
+            <td class="px-6 py-4 text-center">${badgeSesiones(item)}</td>
             <td class="px-6 py-4 text-xs ${esVencido(item) ? 'text-amber-700 font-bold' : 'text-slate-500'}">${fechaLegible(item?.vence_en)}</td>
             <td class="px-6 py-4">
               <div class="flex justify-end gap-2">
@@ -669,7 +715,7 @@
       $('detalleTitulo').textContent = item.nombre || 'Sin nombre';
       $('detalleCodigo').textContent = codigo;
       $('detalleServicio').innerHTML = badgeServicio(item);
-      $('detalleCaja').innerHTML = badgeCaja(item);
+      $('detalleSesiones').innerHTML = badgeSesiones(item);
       $('detalleTotalHoy').textContent = 'Cargando...';
       $('detalleConteoHoy').textContent = '...';
 
@@ -687,6 +733,7 @@
 
       $('modalDetalle').hidden = false;
       document.body.classList.add('overflow-hidden');
+      renderSesionesDetalle(codigo);
       cargarYapeosHoy(codigo).catch(error => mostrarErrorYapeos(error));
     }
 
@@ -694,6 +741,45 @@
       $('modalDetalle').hidden = true;
       if ($('modalEditar').hidden) document.body.classList.remove('overflow-hidden');
       codigoDetalleActual = null;
+    }
+
+    function renderSesionesDetalle(codigo) {
+      const item = negociosActuales[codigo] || {};
+      const sesiones = Object.entries(item.sesiones || {})
+        .sort((a, b) => Number(b[1]?.ultimo_acceso || b[1]?.iniciado_en || 0) - Number(a[1]?.ultimo_acceso || a[1]?.iniciado_en || 0));
+
+      const tbody = $('detalleTablaSesiones');
+      if (!sesiones.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="px-5 py-8 text-center text-slate-400">Sin sesiones registradas.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = sesiones.map(([deviceId, sesion]) => {
+        const tipo = sesion?.tipo_usuario || '—';
+        const empleado = sesion?.codigo_empleado ? ` · ${sesion.codigo_empleado}` : '';
+        const activo = sesion?.activo === true;
+        const dispositivo = sesion?.dispositivo || deviceId;
+        const ultimo = Number(sesion?.ultimo_acceso || sesion?.iniciado_en || 0);
+        return `
+          <tr>
+            <td class="px-5 py-3"><p class="font-bold text-slate-800">${escaparHtml(dispositivo)}</p><p class="text-[11px] text-slate-400 mt-0.5">${escaparHtml(deviceId)}</p></td>
+            <td class="px-5 py-3 text-slate-600">${escaparHtml(tipo + empleado)}</td>
+            <td class="px-5 py-3 text-slate-500 text-xs">${ultimo ? new Date(ultimo).toLocaleString('es-PE') : '—'}</td>
+            <td class="px-5 py-3 text-center">${activo ? '<span class="inline-flex bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold">Activa</span>' : '<span class="inline-flex bg-slate-100 text-slate-500 px-2.5 py-1 rounded-full text-xs font-bold">Cerrada</span>'}</td>
+            <td class="px-5 py-3 text-right">${activo ? `<button type="button" data-device-id="${escaparHtml(deviceId)}" class="btnCerrarSesionDispositivo border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1.5 rounded-lg text-xs font-bold">Cerrar sesión</button>` : '<span class="text-xs text-slate-400">—</span>'}</td>
+          </tr>`;
+      }).join('');
+
+      tbody.querySelectorAll('.btnCerrarSesionDispositivo').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const deviceId = btn.dataset.deviceId;
+          if (!deviceId || !codigoDetalleActual) return;
+          const confirmado = window.confirm(`¿Cerrar la sesión del dispositivo ${deviceId}?`);
+          if (!confirmado) return;
+          try { await cerrarSesionDispositivo(codigoDetalleActual, deviceId); }
+          catch (error) { toast(`No se pudo cerrar la sesión: ${error.message}`, 'error'); }
+        });
+      });
     }
 
     async function cargarYapeosHoy(codigo) {
@@ -777,9 +863,9 @@
     }
 
     function exportarCsv() {
-      const filas = [['codigo','nombre','contacto','plan','vence_en','activo','caja_activa','creado_en','notas']];
+      const filas = [['codigo','nombre','contacto','plan','vence_en','activo','sesiones_activas','creado_en','notas']];
       Object.entries(negociosActuales).forEach(([codigo, item]) => {
-        filas.push([codigo, item?.nombre ?? '', item?.contacto ?? '', item?.plan ?? '', item?.vence_en ?? '', item?.activo === true, item?.caja_activa === true, item?.creado_en ?? '', item?.notas ?? '']);
+        filas.push([codigo, item?.nombre ?? '', item?.contacto ?? '', item?.plan ?? '', item?.vence_en ?? '', item?.activo === true, sesionesActivas(item), item?.creado_en ?? '', item?.notas ?? '']);
       });
       const csv = filas.map(fila => fila.map(v => `"${String(v).replaceAll('"','""')}"`).join(',')).join('\n');
       descargarTexto(`negocios_${hoyLocal()}.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
@@ -803,7 +889,8 @@
           const item = negociosActuales[codigo];
           $('detalleTitulo').textContent = item.nombre || 'Sin nombre';
           $('detalleServicio').innerHTML = badgeServicio(item);
-          $('detalleCaja').innerHTML = badgeCaja(item);
+          $('detalleSesiones').innerHTML = badgeSesiones(item);
+          renderSesionesDetalle(codigo);
           $('detalleInfo').innerHTML = `
             <div><dt class="text-xs uppercase font-bold text-slate-400">Contacto</dt><dd class="mt-1 font-medium text-slate-800">${escaparHtml(item.contacto || '—')}</dd></div>
             <div><dt class="text-xs uppercase font-bold text-slate-400">Plan</dt><dd class="mt-1 font-medium text-slate-800 capitalize">${escaparHtml(item.plan || 'FREE')}</dd></div>
@@ -940,7 +1027,7 @@
 
     $('buscarNegocio').addEventListener('input', renderNegocios);
     $('filtroServicio').addEventListener('change', renderNegocios);
-    $('filtroCaja').addEventListener('change', renderNegocios);
+    $('filtroSesion').addEventListener('change', renderNegocios);
     $('btnRecargarNegocios').addEventListener('click', recargarNegociosUnaVez);
     $('btnExportarCsv').addEventListener('click', exportarCsv);
 
@@ -975,10 +1062,16 @@
       try { await cambiarEstadoServicio(codigoDetalleActual, item.activo === true); }
       catch (error) { toast(error.message, 'error'); }
     });
-    $('btnLiberarCajaDetalle').addEventListener('click', async () => {
+    $('btnCerrarSesionesDetalle').addEventListener('click', async () => {
       if (!codigoDetalleActual) return;
-      try { await liberarCaja(codigoDetalleActual); }
+      const confirmado = window.confirm(`¿Cerrar TODAS las sesiones activas de ${codigoDetalleActual}?`);
+      if (!confirmado) return;
+      try { await cerrarTodasSesiones(codigoDetalleActual); }
       catch (error) { toast(error.message, 'error'); }
+    });
+
+    $('btnActualizarSesiones').addEventListener('click', () => {
+      if (codigoDetalleActual) renderSesionesDetalle(codigoDetalleActual);
     });
     $('btnEliminarDetalle').addEventListener('click', async () => {
       if (!codigoDetalleActual) return;
